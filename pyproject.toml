@@ -1,0 +1,22 @@
+[project]
+name = "toprodimo"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "gwf", email = "ysengrin9@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "astropy>=7.2.0",
+    "nonos>=0.19.1",
+    "numpy>=2.3.5",
+    "prodimopy>=2.5.1",
+]
+
+[project.scripts]
+toprodimo = "toprodimo:main"
+
+[build-system]
+requires = ["uv_build>=0.9.17,<0.10.0"]
+build-backend = "uv_build"
