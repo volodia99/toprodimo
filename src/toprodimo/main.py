@@ -2,6 +2,8 @@ import os
 import argparse
 import shutil
 
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np
 import astropy.units as u
 import astropy.constants as uc
@@ -10,18 +12,23 @@ from nonos.api import GasDataSet
 
 import prodimopy.interface2D.infile as pin2D
 import prodimopy.read as pread
+import prodimopy.plot as pplot
+import prodimopy.plot_models as pplotm
 
-def iterative_mean(*, data, count:int=0, mean=None):
+from toprodimo._typing import F, FArray2D
+
+plt.style.use("nonos.default")
+
+def iterative_mean(*, data:FArray2D[F], count:int=0, mean:FArray2D[F]|None=None) -> FArray2D[F]:
     """
     Compute the iterative mean of data arrays.
     """
     if mean is None:
-        mean = np.zeros(data.shape)
+        mean = np.zeros_like(data)
     mean += 1.0 / (count + 1) * (data - mean)
-
     return mean
 
-def pol2cart(*, r, theta):
+def pol2cart(*, r:FArray2D[F], theta:FArray2D[F]) -> tuple[FArray2D[F], FArray2D[F]]:
     """
     Conversion of the coordinate system to cartesian.
     """
@@ -29,7 +36,7 @@ def pol2cart(*, r, theta):
     z = r*np.cos(theta)
     return (x, z)
 
-def vpol2cart(*, vr, vtheta, r, theta):
+def vpol2cart(*, vr:FArray2D[F], vtheta:FArray2D[F], r:FArray2D[F], theta:FArray2D[F]) -> tuple[FArray2D[F], FArray2D[F]]:
     """
     Convert velocity components from polar to cartesian coordinates.
     """
@@ -39,8 +46,7 @@ def vpol2cart(*, vr, vtheta, r, theta):
     vz = vr * cost - vtheta * sint
     return (vx, vz)
 
-# TODO: make iterative_mean optional when called
-# For now compute time average of all .vtk contained in a given directory
+# TODO: take care of 2D dust fluids when prodimo can handle it
 def load_model(filename:str, *, directory:str=".", UNIT_LENGTH:None|float=None, UNIT_MASS:None|float=None):
     """
     Load the simulation model from a directory containing multiple files
@@ -170,8 +176,7 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "filename",
         type=str,
-        dest="filename",
-        help="name of the file location of output files and param files.",
+        help="name of the output file to be read by ProDiMo.",
     )
 
     parser.add_argument(
@@ -186,7 +191,6 @@ def get_parser() -> argparse.ArgumentParser:
         "-UNIT_LENGTH",
         type=float,
         default=None,
-        dest="UNIT_LENGTH",
         help="code unit of length [au].",
     )
 
@@ -194,16 +198,14 @@ def get_parser() -> argparse.ArgumentParser:
         "-UNIT_MASS",
         type=float,
         default=None,
-        dest="UNIT_MASS",
         help="code unit of mass [solMass].",
     )
 
     parser.add_argument(
-        "-clean",
+        "-mask_inside",
         type=float,
-        default=None,
-        dest="clean",
-        help="mask the velocities inside given cleaning radius [inner edge unit] (default: None).",
+        default=1.2,
+        help="mask the velocities inside given radius [inner edge unit]. put 0 for no masking. (default: 1.2).",
     )
 
     parser.add_argument(
@@ -212,7 +214,7 @@ def get_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         dest="init_prodimo_model_directory",
-        help="location of the initialized prodimo model from which to extract ProDiMo.out. Works with -to_pmdir.",
+        help="location of the initialized prodimo model from which to extract ProDiMo.out. Works only with -to_pmdir.",
     )
 
     parser.add_argument(
@@ -221,21 +223,122 @@ def get_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         dest="prodimo_model_directory",
-        help="location of the prodimo model on which the simulation model is then interpolated. Works with -from_pmdir.",
+        help="location of the prodimo model on which the simulation model is then interpolated. Works only with -from_pmdir.",
     )
 
-    # parser.add_argument(
-    #     "-prodimo_model_dir",
-    #     "-pmdir",
-    #     type=str,
-    #     default=None,
-    #     dest="prodimo_model_directory",
-    #     help="location of initialized prodimo model on which the simulation model is interpolated.",
-    # )
+    parser.add_argument(
+        "-plot",
+        "-p",
+        action="store_true",
+        help="rough plotting procedure to check the validity of toprodimo results.",
+    )
+
+    return parser
+
+def plot_model(model, pdf_name:str=""):
+    """
+    Plot various quantities of the model using prodimopy plotting tools.
+    """
+    xmin = model.x.min()
+    xmax = model.x.max()
+    ymax = model.z.max()
+    rhogmin = np.nanmin(model.rhog[np.nonzero(model.rhog)])
+    rhogmax = np.nanmax(model.rhog)
+
+    xlim = [xmin, xmax]
+    ylim = [0, ymax]
+
+    print(rhogmin, rhogmax)
+
+    constyle = {"zr": False, "xlog": False, "ylog": False, "axequal": True}
+
+    with PdfPages(f"{pdf_name}.pdf") as pdf:
+        pp = pplot.Plot(pdf)
+        pp.plot_grid(model, xlim=xlim, ylim=ylim, **constyle)
+
+        pp.plot_cont(
+            model,
+            "rhog",
+            **constyle,
+            zlim=[rhogmin, rhogmax],
+            # zlim=[1.0e-20, 1.0e-14],
+            extend="both",
+            xlim=xlim,
+            ylim=ylim,
+        )
+        pp.plot_cont(
+            model,
+            "rhog",
+            **constyle,
+            zlim=[rhogmin, rhogmax],
+            # zlim=[1.0e-20, 1.0e-14],
+            extend="both",
+            xlim=[0.75*xmin, 3*xmin],
+            ylim=[0, 3*xmin],
+            # xlim=[5, 15],
+            # ylim=[0, 12],
+        )
+
+        pp.plot_cont(model, "tg", **constyle, xlim=xlim, ylim=ylim)
+        pp.plot_cont(model, "tg", **constyle, xlim=[0.75*xmin, 3*xmin], ylim=[0, 3*xmin])
+
+        for i, label in enumerate(["vx", "vy", "vz"]):
+            if label=="vy":
+                # zlim = [0, 10]
+                zlim = [0, np.nanmax(model.velocity[:,2])]
+                cmap = "plasma"
+            else:
+                # zlim = [-0.05, 0.05]
+                zlim = [-0.01*np.nanmax(model.velocity[:,2]), 0.01*np.nanmax(model.velocity[:,2])]
+                cmap = "berlin"
+            pp.plot_cont(
+                model,
+                model.velocity[:, :, i],
+                label,
+                **constyle,
+                zlog=False,
+                extend="both",
+                zlim=zlim,
+                cmap=cmap,
+                xlim=xlim,
+                ylim=ylim,
+            )
+            pp.plot_cont(
+                model,
+                model.velocity[:, :, i],
+                label,
+                **constyle,
+                zlog=False,
+                extend="both",
+                zlim=zlim,
+                xlim=[0.75*xmin, 3*xmin],
+                ylim=[0, 3*xmin],
+                # xlim=[5, 15],
+                # ylim=[0, 12],
+                cmap=cmap,
+            )
+
+        # Check the Keplerian velocity
+        pp.plot_radial(
+            model,
+            model.velocity[:, :, 1],
+            "vy",
+            zidx=0,
+            ylog=False,
+            xlog=True,
+            ylim=[np.nanmin(model.velocity[:, 0, 1]), np.nanmax(model.velocity[:, 0, 1])],
+            title="Keplerian Velocity Vy at z=0 au",
+        )
 
 def main(argv: list[str] | None = None) -> int:
     parser = get_parser()
-    args = vars(parser)
+    args = parser.parse_args()
+    print("")
+
+    if not(os.path.exists(os.path.join(os.getcwd(), args.directory, args.filename))):
+        raise FileNotFoundError(
+            f"'{os.path.join(args.directory, args.filename)}' must exist."
+        )
 
     # load the model
     model = load_model(
@@ -250,50 +353,69 @@ def main(argv: list[str] | None = None) -> int:
     xxnew = (model.x * u.cm).to(u.au).value
     zznew = (model.z * u.cm).to(u.au).value
     rrnew = np.sqrt(xxnew**2 + zznew**2)
-    rincut = rrnew.min()  # use this as the cut ...
+    rincut = rrnew.min()*0.95  # use this as the cut ...
 
     vzcart = model.velocity[:, :, 2]
     mask_inner_edge = np.zeros_like(xxnew, dtype=bool)
     mask_inner_edge = (xxnew < rincut)
 
-    if args.clean:
-        model.velocity[(xxnew < rincut * args.clean), 0] = 0.0
-        model.velocity[(xxnew < rincut * args.clean), 2] = 0.0
+    if args.mask_inside:
+        print(f"INFO: canceling (vx, vz) inside {args.mask_inside:.2f} r_inner...\n")
+        model.velocity[(xxnew < rincut * args.mask_inside), 0] = 0.0
+        model.velocity[(xxnew < rincut * args.mask_inside), 2] = 0.0
 
     model.rhoGas[mask_inner_edge] = np.nan
     model.tgas[mask_inner_edge] = np.nan
     for i in range(3):
         model.velocity[mask_inner_edge, i] = np.nan
 
-    if not all(args.init_prodimo_model_directory, args.prodimo_model_directory):
+    if not all((args.init_prodimo_model_directory, args.prodimo_model_directory)):
         raise ValueError(
-            f"init_prodimo_model_directory={args.init_prodimo_model_directory}, prodimo_model_directory={args.prodimo_model_directory}"\
-            "Both the init_prodimo_model_directory and the prodimo_model_directory have be specified,"\
+            f"init_prodimo_model_directory={args.init_prodimo_model_directory}, prodimo_model_directory={args.prodimo_model_directory}. "\
+            "Both the init_prodimo_model_directory and the prodimo_model_directory have to be specified, "\
             "using: -from 'init_prodimo_model_directory' -to 'prodimo_model_directory'"\
         )
 
-    if not(os.path.isdir(args.init_prodimo_model_directory)) | not(os.path.exists(os.path.join(os.getcwd(), args.init_prodimo_model_directory, "ProDiMo.out"))):
+    if (not(os.path.isdir(args.init_prodimo_model_directory))) | (not(os.path.exists(os.path.join(os.getcwd(), args.init_prodimo_model_directory, "ProDiMo.out")))):
         raise ValueError(
-            f"Both '{args.init_prodimo_model_directory}' and {os.path.join(args.init_prodimo_model_directory, 'ProDiMo.out')} must exist."\
-            "In order to do the conversion from simulation outputs to ProDiMo, an init ProDiMo model has to be run beforehand."\
-            "The resulting proper grid and parameters will then be used by ProDiMo."\
-            "One needs to run it at least once with stop_after_init=.true. in order for the toProDiMo routine to read the ProDiMo.out file."
+            f"{os.path.join(args.init_prodimo_model_directory, 'ProDiMo.out')} must exist. "\
+            "In order to do the conversion from simulation outputs to ProDiMo, an init ProDiMo model has to be run beforehand. "\
+            "The resulting proper grid and parameters will then be used by ProDiMo. "\
+            "One needs to run it at least once with stop_after_init=.true. in order to create the ProDiMo.out file."
         )
 
     if not(os.path.isdir(args.prodimo_model_directory)):
-        print(f"'{args.prodimo_model_directory}' must exist. Creating it...")
+        print(f"WARN: '{args.prodimo_model_directory}' must exist. Creating it...\n")
         os.makedirs(args.prodimo_model_directory)
 
     if os.path.exists(os.path.join(os.getcwd(), args.prodimo_model_directory, "ProDiMo.out")):
         raise ValueError(
-            f"{os.path.join(args.init_prodimo_model_directory, 'ProDiMo.out')} already exists."\
+            f"{os.path.join(args.prodimo_model_directory, 'ProDiMo.out')} already exists. "\
             "Check if you are sure of what you are doing. If you do, delete the preexisting 'ProDiMo.out' file yourself."
         )
     shutil.copy2(os.path.join(args.init_prodimo_model_directory, "ProDiMo.out"), args.prodimo_model_directory)
 
     prodimo_model = pread.read_prodimo(args.prodimo_model_directory, name="ProDiMo model")
 
-    # The new 2D input files are written to the init_prodimo_model directory
-    interpolated_prodimo_model = model.toProDiMo(init_prodimo_model, outdir=init_prodimo_model.directory, fixmethod=0)
+    # The new 2D input files are written to the prodimo_model directory
+    interpolated_prodimo_model = model.toProDiMo(prodimo_model, outdir=prodimo_model.directory, fixmethod=0)
+
+    if args.plot:
+        pmodel = model.get_pmodel()
+        # Plot directly the data from the simulation
+        plot_model(pmodel, pdf_name="simulation")
+
+        # Plot the new ProDiMo model
+        plot_model(interpolated_prodimo_model, pdf_name="prodimo")
+
+        models = [pmodel, interpolated_prodimo_model]
+
+        with PdfPages("compare_simulation_prodimo.pdf") as pdf:
+            ppm = pplotm.PlotModels(pdf, styles=["-", "--"])
+            # We can directly compare the new intepolated numbers to the original MDH model
+            ppm.plot_midplane(models, "rhog", "rhog", ylim=[np.nanmin(models[0].rhog[np.nonzero(models[0].rhog)]), np.nanmax(models[0].rhog)])#[1e-24, 1e-10])
+            # This plot shows some deviations, the reason is that we have to few vertical points, and most of them are concentrated towards the midplane
+            # where the interpolation is still accurate
+            ppm.plot_vertical(models, args.UNIT_LENGTH, "rhog", "rhog", xlim=[1, 0])
 
     return 0

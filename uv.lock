@@ -646,6 +646,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "astropy" },
+    { name = "matplotlib" },
     { name = "nonos" },
     { name = "numpy" },
     { name = "prodimopy" },
@@ -654,6 +655,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "astropy", specifier = ">=7.2.0" },
+    { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "nonos", specifier = ">=0.19.1" },
     { name = "numpy", specifier = ">=2.3.5" },
     { name = "prodimopy", specifier = ">=2.5.1" },
