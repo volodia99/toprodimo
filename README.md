@@ -4,6 +4,8 @@
 
 ## Development status
 
+*Word of caution*: `toprodimo` has still to be tested, in particular to be sure that everything works smoothly when the ProDiMo model created by `toprodimo` is used in a ProDiMo computation.
+
 To be implemented : 
 - Take care of the 2D distributions of dust fluids described by their size, when it will be fully implemented in ProDiMo
 - Add flexibility on how the temperature is computed (for now the temperature in the simulation is directly given to ProDiMo, using a fixed solar mean molecular weight of 1.37)
@@ -56,7 +58,7 @@ options:
 ## Additional arguments
 
 - `mask_inside` removes the contribution of the radial and vertical velocities close to the grid's inner edge, to avoid some spurious effects in ProDiMo. By default we cancel these velocity components in a band that extends from r_inner to 1.2*r_inner.
-- `plot` performs creates 3 .pdf files with some plots of the density/velocities/temperature
+- `plot` creates 3 .pdf files in the PRODIMO_MODEL_DIRECTORY with some plots of the density/velocities/temperature
     - simulation.pdf: from the simulation file, with some post-processing (e.g., removing for all the fields the region inside the cylindrical radius corresponding to the inner edge).
     - prodimo.pdf: from the ProDiMo model, ready to be run with ProDiMo.
     - compare_simulation_prodimo.pdf: look at the 1D density in the midplane and vertically at R=UNIT_LENGTH. 

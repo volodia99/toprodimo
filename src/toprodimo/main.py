@@ -1,6 +1,7 @@
 import os
 import argparse
 import shutil
+import json
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -332,7 +333,7 @@ def plot_model(model, pdf_name:str=""):
 
 def main(argv: list[str] | None = None) -> int:
     parser = get_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     print("")
 
     if not(os.path.exists(os.path.join(os.getcwd(), args.directory, args.filename))):
@@ -403,19 +404,24 @@ def main(argv: list[str] | None = None) -> int:
     if args.plot:
         pmodel = model.get_pmodel()
         # Plot directly the data from the simulation
-        plot_model(pmodel, pdf_name="simulation")
+        plot_model(pmodel, pdf_name=os.path.join(args.prodimo_model_directory, "simulation"))
 
         # Plot the new ProDiMo model
-        plot_model(interpolated_prodimo_model, pdf_name="prodimo")
+        plot_model(interpolated_prodimo_model, pdf_name=os.path.join(args.prodimo_model_directory, "prodimo"))
 
         models = [pmodel, interpolated_prodimo_model]
 
-        with PdfPages("compare_simulation_prodimo.pdf") as pdf:
+        with PdfPages(os.path.join(args.prodimo_model_directory, "compare_simulation_prodimo.pdf")) as pdf:
             ppm = pplotm.PlotModels(pdf, styles=["-", "--"])
             # We can directly compare the new intepolated numbers to the original MDH model
             ppm.plot_midplane(models, "rhog", "rhog", ylim=[np.nanmin(models[0].rhog[np.nonzero(models[0].rhog)]), np.nanmax(models[0].rhog)])#[1e-24, 1e-10])
             # This plot shows some deviations, the reason is that we have to few vertical points, and most of them are concentrated towards the midplane
             # where the interpolation is still accurate
             ppm.plot_vertical(models, args.UNIT_LENGTH, "rhog", "rhog", xlim=[1, 0])
+
+    dargs = vars(args)
+    # Writing CLI args to a JSON file
+    with open(os.path.join(args.prodimo_model_directory, "toprodimo_args.json"), "w") as outfile:
+        json.dump(dargs, outfile, indent=1)
 
     return 0
