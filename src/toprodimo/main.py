@@ -48,21 +48,30 @@ def vpol2cart(*, vr:FArray2D[F], vtheta:FArray2D[F], r:FArray2D[F], theta:FArray
     return (vx, vz)
 
 # TODO: take care of 2D dust fluids when prodimo can handle it
-def load_model(filename:str, *, directory:str=".", UNIT_LENGTH:None|float=None, UNIT_MASS:None|float=None):
+def load_model(file:str|int, *, directory:None|str=None, UNIT_LENGTH:None|float=None, UNIT_MASS:None|float=None):
     """
-    Load the simulation model from a directory containing multiple files
-    - filename (str): name of the simulation output file
-    - directory (str): location where to find 'filename'
+    Load the simulation model from a simulation file
+    - file (str|int): absolute path of the simulation output file, or output number
+    - directory (str): location of the simulated output file, if described by its output number
     - UNIT_LENGTH (float): typical length in au
     - UNIT_MASS (float): typical mass in solMass
 
     Returns a prodimopy Interface2Din object.
     """
 
-    if UNIT_LENGTH is None:
-        raise ValueError("UNIT_LENGTH should be specified with corresponding command-line argument.")
-    if UNIT_MASS is None:
-        raise ValueError("UNIT_MASS should be specified with corresponding command-line argument.")
+    if isinstance(file, str):
+        if directory is not None:
+            raise ValueError(
+                f"if {file=} is an absolute path, {directory=} should not be defined"
+            )
+        ds = GasDataSet(file)
+    elif isinstance(file, int):
+        if directory is None:
+            raise ValueError(
+                f"if {file=} is an integer output number, {directory=} should be defined"
+            )
+        ds = GasDataSet(file, directory=directory)
+
     # For converting code units to real units
     UNIT_LENGTH = UNIT_LENGTH * u.au
     UNIT_MASS = UNIT_MASS * u.M_sun
@@ -73,15 +82,12 @@ def load_model(filename:str, *, directory:str=".", UNIT_LENGTH:None|float=None, 
     MUSTAR = 1.37
     UNIT_TEMPERATURE = ((MUSTAR*uc.m_p*uc.G/uc.k_B)*UNIT_MASS/UNIT_LENGTH).to(u.K)
 
-    if directory.startswith("~"):
-        directory = os.path.expanduser(directory)
-
     density = None
     velocity_r = None
     velocity_theta = None
     velocity_phi = None
     temperature = None
-    ds = GasDataSet(os.path.join(directory, filename))
+
     if ds.native_geometry!="spherical":
         raise ValueError(f"native_geometry='{ds.native_geometry}' should be 'spherical'")
     nr, ntheta, nphi = list(ds.values())[0].data.shape
@@ -174,65 +180,113 @@ def get_parser() -> argparse.ArgumentParser:
     )
     parser.suggest_on_error = True  # type: ignore [attr-defined]
 
-    parser.add_argument(
-        "filename",
-        type=str,
-        help="name of the output file to be read by ProDiMo.",
+    subparsers = parser.add_subparsers(
+        help="Choice between from_on (from output number) and from_path (from absolute path to file name)", 
+        dest="input_processing"
     )
 
-    parser.add_argument(
+    ###
+    ## Create the parser for the "on" command
+    parser_on = subparsers.add_parser(
+        "from_on", 
+        help="Work with output number approach. Try 'toprodimo from_on -h' for more info."
+    )
+    parser_on.add_argument(
+        "file_on", 
+        type=int, 
+        help="Get simulation output from its output number"
+    )
+
+    parser_on.add_argument(
         "-dir",
         type=str,
-        default=".",
+        required=True,
         dest="directory",
-        help="location of output files and param files (default: '.').",
+        help="required: location of the simulated output, if described by its output number.",
     )
 
-    parser.add_argument(
-        "-UNIT_LENGTH",
-        type=float,
-        default=None,
-        help="code unit of length [au].",
+    ## Create the parser for the "name" command
+    parser_file = subparsers.add_parser(
+        "from_path", 
+        help="Work with file name approach. Try 'toprodimo from_path -h' for more info."
     )
+    parser_file.add_argument(
+        "file_path", 
+        type=str, 
+        help="Get simulation output from its name"
+    )
+    ###
 
-    parser.add_argument(
-        "-UNIT_MASS",
-        type=float,
-        default=None,
-        help="code unit of mass [solMass].",
-    )
+    # parser.add_argument(
+    #     "file",
+    #     type=str|int,
+    #     help="name of the output file to be read by ProDiMo.",
+    # )
 
-    parser.add_argument(
-        "-mask_inside",
-        type=float,
-        default=1.2,
-        help="mask the velocities inside given radius [inner edge unit]. put 0 for no masking. (default: 1.2).",
-    )
+    # parser.add_argument(
+    #     "-dir",
+    #     type=str,
+    #     default=None,
+    #     dest="directory",
+    #     help="location of output files and param files (default: '.').",
+    # )
 
-    parser.add_argument(
-        "-from_pmdir",
-        "-from",
-        type=str,
-        default=None,
-        dest="init_prodimo_model_directory",
-        help="location of the initialized prodimo model from which to extract ProDiMo.out. Works only with -to_pmdir.",
-    )
+    # parser.add_argument(
+    #     "-on",
+    #     type=str,
+    #     default=None,
+    #     dest="directory",
+    #     help="location of output files and param files (default: '.').",
+    # )
 
-    parser.add_argument(
-        "-to_pmdir",
-        "-to",
-        type=str,
-        default=None,
-        dest="prodimo_model_directory",
-        help="location of the prodimo model on which the simulation model is then interpolated. Works only with -from_pmdir.",
-    )
+    for subparser in [parser_on, parser_file]:
+        subparser.add_argument(
+            "-UNIT_LENGTH",
+            type=float,
+            default=None,
+            required=True,
+            help="required: code unit of length [au].",
+        )
 
-    parser.add_argument(
-        "-plot",
-        "-p",
-        action="store_true",
-        help="rough plotting procedure to check the validity of toprodimo results.",
-    )
+        subparser.add_argument(
+            "-UNIT_MASS",
+            type=float,
+            default=None,
+            required=True,
+            help="required: code unit of mass [solMass].",
+        )
+
+        subparser.add_argument(
+            "-mask_inside",
+            type=float,
+            default=1.2,
+            help="mask the velocities inside given radius [inner edge unit]. put 0 for no masking. (default: 1.2).",
+        )
+
+        subparser.add_argument(
+            "-from_pmdir",
+            "-from",
+            type=str,
+            default=None,
+            dest="init_prodimo_model_directory",
+            help="location of the initialized prodimo model from which to extract ProDiMo.out. Works only with -to_pmdir.",
+        )
+
+        subparser.add_argument(
+            "-to_pmdir",
+            "-to",
+            type=str,
+            default=None,
+            dest="prodimo_model_directory",
+            help="location of the prodimo model on which the simulation model is then interpolated. Works only with -from_pmdir.",
+        )
+
+        subparser.add_argument(
+            "-plot",
+            "-p",
+            action="store_true",
+            help="rough plotting procedure to check the validity of toprodimo results.",
+        )
 
     return parser
 
@@ -336,15 +390,34 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     print("")
 
-    if not(os.path.exists(os.path.join(os.getcwd(), args.directory, args.filename))):
-        raise FileNotFoundError(
-            f"'{os.path.join(args.directory, args.filename)}' must exist."
+    if not all((args.init_prodimo_model_directory, args.prodimo_model_directory)):
+        raise ValueError(
+            f"init_prodimo_model_directory={args.init_prodimo_model_directory}, prodimo_model_directory={args.prodimo_model_directory}. "\
+            "Both the init_prodimo_model_directory and the prodimo_model_directory have to be specified, "\
+            "using: -from 'init_prodimo_model_directory' -to 'prodimo_model_directory'"\
         )
+
+    if (not(os.path.isdir(args.init_prodimo_model_directory))) | (not(os.path.exists(os.path.join(os.getcwd(), args.init_prodimo_model_directory, "ProDiMo.out")))):
+        raise ValueError(
+            f"{os.path.join(args.init_prodimo_model_directory, 'ProDiMo.out')} must exist. "\
+            "In order to do the conversion from simulation outputs to ProDiMo, an init ProDiMo model has to be run beforehand. "\
+            "The resulting proper grid and parameters will then be used by ProDiMo. "\
+            "One needs to run it at least once with stop_after_init=.true. in order to create the ProDiMo.out file."
+        )
+
+    if args.input_processing=="from_path":
+        file = args.file_path
+        directory = None
+        if not(os.path.isfile(file)):
+            raise FileNotFoundError(f"absolute path of the file '{file}' must exist.")
+    elif args.input_processing=="from_on":
+        file = args.file_on
+        directory = args.directory
 
     # load the model
     model = load_model(
-        filename=args.filename,
-        directory=args.directory, 
+        file=file,
+        directory=directory, 
         UNIT_LENGTH=args.UNIT_LENGTH, 
         UNIT_MASS=args.UNIT_MASS, 
     )
@@ -370,26 +443,12 @@ def main(argv: list[str] | None = None) -> int:
     for i in range(3):
         model.velocity[mask_inner_edge, i] = np.nan
 
-    if not all((args.init_prodimo_model_directory, args.prodimo_model_directory)):
-        raise ValueError(
-            f"init_prodimo_model_directory={args.init_prodimo_model_directory}, prodimo_model_directory={args.prodimo_model_directory}. "\
-            "Both the init_prodimo_model_directory and the prodimo_model_directory have to be specified, "\
-            "using: -from 'init_prodimo_model_directory' -to 'prodimo_model_directory'"\
-        )
-
-    if (not(os.path.isdir(args.init_prodimo_model_directory))) | (not(os.path.exists(os.path.join(os.getcwd(), args.init_prodimo_model_directory, "ProDiMo.out")))):
-        raise ValueError(
-            f"{os.path.join(args.init_prodimo_model_directory, 'ProDiMo.out')} must exist. "\
-            "In order to do the conversion from simulation outputs to ProDiMo, an init ProDiMo model has to be run beforehand. "\
-            "The resulting proper grid and parameters will then be used by ProDiMo. "\
-            "One needs to run it at least once with stop_after_init=.true. in order to create the ProDiMo.out file."
-        )
-
     if not(os.path.isdir(args.prodimo_model_directory)):
         print(f"WARN: '{args.prodimo_model_directory}' must exist. Creating it...\n")
         os.makedirs(args.prodimo_model_directory)
 
-    if os.path.exists(os.path.join(os.getcwd(), args.prodimo_model_directory, "ProDiMo.out")):
+    if os.path.isfile(os.path.join(args.prodimo_model_directory, "ProDiMo.out")):
+    # if os.path.exists(os.path.join(os.getcwd(), args.prodimo_model_directory, "ProDiMo.out")):
         raise ValueError(
             f"{os.path.join(args.prodimo_model_directory, 'ProDiMo.out')} already exists. "\
             "Check if you are sure of what you are doing. If you do, delete the preexisting 'ProDiMo.out' file yourself."
