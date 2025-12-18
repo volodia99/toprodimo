@@ -15,7 +15,7 @@ We recommend to install this repo using the package and project manager `uv`. Se
 
 ## Run the CLI
 
-After `cd lick_template`, you can run the CLI inside the project's virtual environment, via the following:
+After `cd toprodimo`, you can run the CLI inside the project's virtual environment, via the following:
 
 ```shell
 uv run toprodimo PATH_TO_SIMULATION_FILE -UNIT_LENGTH float -UNIT_MASS float -from PATH_TO_INIT_PRODIMO_MODEL_DIR -to PATH_TO_PRODIMO_MODEL_DIR
