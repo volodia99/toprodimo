@@ -215,29 +215,6 @@ def get_parser() -> argparse.ArgumentParser:
         type=str, 
         help="Get simulation output from its name"
     )
-    ###
-
-    # parser.add_argument(
-    #     "file",
-    #     type=str|int,
-    #     help="name of the output file to be read by ProDiMo.",
-    # )
-
-    # parser.add_argument(
-    #     "-dir",
-    #     type=str,
-    #     default=None,
-    #     dest="directory",
-    #     help="location of output files and param files (default: '.').",
-    # )
-
-    # parser.add_argument(
-    #     "-on",
-    #     type=str,
-    #     default=None,
-    #     dest="directory",
-    #     help="location of output files and param files (default: '.').",
-    # )
 
     for subparser in [parser_on, parser_file]:
         subparser.add_argument(
@@ -316,7 +293,6 @@ def plot_model(model, pdf_name:str=""):
             "rhog",
             **constyle,
             zlim=[rhogmin, rhogmax],
-            # zlim=[1.0e-20, 1.0e-14],
             extend="both",
             xlim=xlim,
             ylim=ylim,
@@ -326,12 +302,9 @@ def plot_model(model, pdf_name:str=""):
             "rhog",
             **constyle,
             zlim=[rhogmin, rhogmax],
-            # zlim=[1.0e-20, 1.0e-14],
             extend="both",
             xlim=[0.75*xmin, 3*xmin],
             ylim=[0, 3*xmin],
-            # xlim=[5, 15],
-            # ylim=[0, 12],
         )
 
         pp.plot_cont(model, "tg", **constyle, xlim=xlim, ylim=ylim)
@@ -339,11 +312,9 @@ def plot_model(model, pdf_name:str=""):
 
         for i, label in enumerate(["vx", "vy", "vz"]):
             if label=="vy":
-                # zlim = [0, 10]
                 zlim = [0, np.nanmax(model.velocity[:,2])]
                 cmap = "plasma"
             else:
-                # zlim = [-0.05, 0.05]
                 zlim = [-0.01*np.nanmax(model.velocity[:,2]), 0.01*np.nanmax(model.velocity[:,2])]
                 cmap = "berlin"
             pp.plot_cont(
@@ -368,8 +339,6 @@ def plot_model(model, pdf_name:str=""):
                 zlim=zlim,
                 xlim=[0.75*xmin, 3*xmin],
                 ylim=[0, 3*xmin],
-                # xlim=[5, 15],
-                # ylim=[0, 12],
                 cmap=cmap,
             )
 
@@ -448,7 +417,6 @@ def main(argv: list[str] | None = None) -> int:
         os.makedirs(args.prodimo_model_directory)
 
     if os.path.isfile(os.path.join(args.prodimo_model_directory, "ProDiMo.out")):
-    # if os.path.exists(os.path.join(os.getcwd(), args.prodimo_model_directory, "ProDiMo.out")):
         raise ValueError(
             f"{os.path.join(args.prodimo_model_directory, 'ProDiMo.out')} already exists. "\
             "Check if you are sure of what you are doing. If you do, delete the preexisting 'ProDiMo.out' file yourself."
