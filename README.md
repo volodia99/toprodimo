@@ -111,7 +111,7 @@ options:
 ## Additional arguments
 
 - `mask_inside` removes the contribution of the radial and vertical velocities close to the grid's inner edge, to avoid some spurious effects in ProDiMo. By default we cancel these velocity components in a band that extends from r_inner to 1.2*r_inner.
-- `plot` creates 3 .pdf files in the PRODIMO_MODEL_DIRECTORY with some plots of the density/velocities/temperature
+- `plot` creates 3 .pdf files in the PRODIMO_MODEL_DIRECTORY with a few plots of the density/velocities/temperature
     - simulation.pdf: from the simulation file, with some post-processing (e.g., removing for all the fields the region inside the cylindrical radius corresponding to the inner edge).
     - prodimo.pdf: from the ProDiMo model, ready to be run with ProDiMo.
     - compare_simulation_prodimo.pdf: look at the 1D density in the midplane and vertically at R=UNIT_LENGTH. 
@@ -120,6 +120,6 @@ options:
 
 In order for the procedure to work, you need to keep in mind that:
 - `toprodimo` needs the typical UNIT_LENGTH and UNIT_MASS of the simulated model.
-- `toprodimo` works on top of an initialized ProDiMo model that has to be run beforehand with the typical parameters of the simulated model (disk, star, ...). The corresponding ProDiMo.out parameter is then copied to a new prodimo directory to perform the interpolation of the simulated data to this new ProDiMo model.
+- `toprodimo` works on top of an initialized ProDiMo model that has to be run beforehand with the typical parameters of the simulated model (disk, star, ...). The corresponding ProDiMo.out parameter file is then copied to a new prodimo directory to perform the interpolation of the simulated data to this new ProDiMo model.
 
 See also the [ProDiMo documentation](https://prodimowiki.readthedocs.io/en/latest/userguide/interface2D.html).
