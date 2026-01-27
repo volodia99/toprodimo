@@ -98,7 +98,7 @@ def load_model(file:str|int, *, directory:None|str=None, UNIT_LENGTH:None|float=
         # TODO: for now we take only the upper half if theta is symmetric compared to the midplane 
         theta_edge = ds.coords.get_axis_array("theta")
         min_half_dtheta_edge = np.diff(theta_edge).min()/2
-        if not np.isclose(np.ptp(theta_edge)-np.pi/2, np.float32(0.0), atol=min_half_dtheta_edge):
+        if not np.isclose(np.mean(theta_edge)-np.pi/2, np.float32(0.0), atol=min_half_dtheta_edge):
             raise NotImplementedError("Should be symmetric compared to the midplane (pi/2), in order to extract upper half")
         theta = theta[0:ntheta//2+1]
     density = iterative_mean(
@@ -279,8 +279,6 @@ def plot_model(model, pdf_name:str=""):
 
     xlim = [xmin, xmax]
     ylim = [0, ymax]
-
-    print(rhogmin, rhogmax)
 
     constyle = {"zr": False, "xlog": False, "ylog": False, "axequal": True}
 
