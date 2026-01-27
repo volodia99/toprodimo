@@ -48,13 +48,13 @@ def vpol2cart(*, vr:FArray2D[F], vtheta:FArray2D[F], r:FArray2D[F], theta:FArray
     return (vx, vz)
 
 # TODO: take care of 2D dust fluids when prodimo can handle it
-def load_model(file:str|int, *, directory:None|str=None, UNIT_LENGTH:None|float=None, UNIT_MASS:None|float=None):
+def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|float=None, unit_mass_msun:None|float=None):
     """
     Load the simulation model from a simulation file
     - file (str|int): absolute path of the simulation output file, or output number
     - directory (str): location of the simulated output file, if described by its output number
-    - UNIT_LENGTH (float): typical length in au
-    - UNIT_MASS (float): typical mass in solMass
+    - unit_length_au (float): typical length in au
+    - unit_mass_msun (float): typical mass in solMass
 
     Returns a prodimopy Interface2Din object.
     """
@@ -73,14 +73,14 @@ def load_model(file:str|int, *, directory:None|str=None, UNIT_LENGTH:None|float=
         ds = GasDataSet(file, directory=directory)
 
     # For converting code units to real units
-    UNIT_LENGTH = UNIT_LENGTH * u.au
-    UNIT_MASS = UNIT_MASS * u.M_sun
-    UNIT_DENSITY = UNIT_MASS / UNIT_LENGTH**3
-    UNIT_VELOCITY = np.sqrt(uc.G*UNIT_MASS/UNIT_LENGTH).to(u.m/u.s)
+    unit_length_au = unit_length_au * u.au
+    unit_mass_msun = unit_mass_msun * u.M_sun
+    UNIT_DENSITY = unit_mass_msun / unit_length_au**3
+    UNIT_VELOCITY = np.sqrt(uc.G*unit_mass_msun/unit_length_au).to(u.m/u.s)
     # TODO: for now temperature conversion with fixed mustar
     # TODO: check if prodimo parameter how temperature is computed
     MUSTAR = 1.37
-    UNIT_TEMPERATURE = ((MUSTAR*uc.m_p*uc.G/uc.k_B)*UNIT_MASS/UNIT_LENGTH).to(u.K)
+    UNIT_TEMPERATURE = ((MUSTAR*uc.m_p*uc.G/uc.k_B)*unit_mass_msun/unit_length_au).to(u.K)
 
     density = None
     velocity_r = None
@@ -166,8 +166,8 @@ def load_model(file:str|int, *, directory:None|str=None, UNIT_LENGTH:None|float=
 
     # Use the prodimopy tools to generate an object for further processing
     return pin2D.Interface2Din(
-        ((xx * UNIT_LENGTH).to(u.cm)).value,
-        ((zz * UNIT_LENGTH).to(u.cm)).value,
+        ((xx * unit_length_au).to(u.cm)).value,
+        ((zz * unit_length_au).to(u.cm)).value,
         rhoGas=((density * UNIT_DENSITY).to(u.g / u.cm**3)).value,
         velocity=((velocity * UNIT_VELOCITY).to(u.cm / u.s)).value,
         tgas=(temperature * UNIT_TEMPERATURE).value,
@@ -218,7 +218,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     for subparser in [parser_on, parser_file]:
         subparser.add_argument(
-            "-UNIT_LENGTH",
+            "-unit_length_au",
             type=float,
             default=None,
             required=True,
@@ -226,7 +226,7 @@ def get_parser() -> argparse.ArgumentParser:
         )
 
         subparser.add_argument(
-            "-UNIT_MASS",
+            "-unit_mass_msun",
             type=float,
             default=None,
             required=True,
@@ -385,8 +385,8 @@ def main(argv: list[str] | None = None) -> int:
     model = load_model(
         file=file,
         directory=directory, 
-        UNIT_LENGTH=args.UNIT_LENGTH, 
-        UNIT_MASS=args.UNIT_MASS, 
+        unit_length_au=args.unit_length_au, 
+        unit_mass_msun=args.unit_mass_msun, 
     )
 
     # Make some manipulations
@@ -442,7 +442,7 @@ def main(argv: list[str] | None = None) -> int:
             ppm.plot_midplane(models, "rhog", "rhog", ylim=[np.nanmin(models[0].rhog[np.nonzero(models[0].rhog)]), np.nanmax(models[0].rhog)])#[1e-24, 1e-10])
             # This plot shows some deviations, the reason is that we have to few vertical points, and most of them are concentrated towards the midplane
             # where the interpolation is still accurate
-            ppm.plot_vertical(models, args.UNIT_LENGTH, "rhog", "rhog", xlim=[1, 0])
+            ppm.plot_vertical(models, args.unit_length_au, "rhog", "rhog", xlim=[1, 0])
 
     dargs = vars(args)
     # Writing CLI args to a JSON file
