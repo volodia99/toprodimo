@@ -464,7 +464,7 @@ wheels = [
 
 [[package]]
 name = "prodimopy"
-version = "2.5.1"
+version = "2.5.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "adjusttext" },
@@ -479,9 +479,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/22/7d/36de6ebe32d160cd6454b577962212473be661cd92d6a660d20bfbf9979c/prodimopy-2.5.1.tar.gz", hash = "sha256:3f67620052ace9280177620fba3b6977628b7efd4dc82ae11d7a8768371ef93a", size = 203685, upload-time = "2025-12-06T22:40:23.45Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/93/86/7906cdf1809acdfc8a2523fac3ba1e08f6685e8955f636fc922aa80d5487/prodimopy-2.5.2.tar.gz", hash = "sha256:8ae7a8c9bd9b521d6c8e9e8f118d7fb3bcbdcbdf982c019a98e1c2af78f8dc6f", size = 207452, upload-time = "2026-01-23T11:10:07.33Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/38/a4/1b1e57d1781aeb52d0ab28093e9d3f7fe85416f3374b612cdd6ac7fe34c9/prodimopy-2.5.1-py3-none-any.whl", hash = "sha256:9339680b77f93f08436c84721fea78e21af0abe6dcfa79fb6ca759a02f26286a", size = 213818, upload-time = "2025-12-06T22:40:21.368Z" },
+    { url = "https://files.pythonhosted.org/packages/67/13/5b265f6b9ad9edea0acd9e72c36d9caf9842bacd34df73ad03719e2e9eb9/prodimopy-2.5.2-py3-none-any.whl", hash = "sha256:8c55a3c80361da8a111257e88589fd6f2da258124b3fa5dd4f072483ec62ad49", size = 217613, upload-time = "2026-01-23T11:10:05.455Z" },
 ]
 
 [[package]]
@@ -641,24 +641,37 @@ wheels = [
 ]
 
 [[package]]
+name = "tomli-w"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/75/241269d1da26b624c0d5e110e8149093c759b7a286138f4efd61a60e75fe/tomli_w-1.2.0.tar.gz", hash = "sha256:2dd14fac5a47c27be9cd4c976af5a12d87fb1f0b4512f81d69cce3b35ae25021", size = 7184, upload-time = "2025-01-15T12:07:24.262Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl", hash = "sha256:188306098d013b691fcadc011abd66727d3c414c571bb01b1a174ba8c983cf90", size = 6675, upload-time = "2025-01-15T12:07:22.074Z" },
+]
+
+[[package]]
 name = "toprodimo"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "astropy" },
+    { name = "inifix" },
     { name = "matplotlib" },
     { name = "nonos" },
     { name = "numpy" },
     { name = "prodimopy" },
+    { name = "tomli-w" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "astropy", specifier = ">=7.2.0" },
+    { name = "inifix", specifier = ">=6.1.1" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "nonos", specifier = ">=0.19.1" },
     { name = "numpy", specifier = ">=2.3.5" },
-    { name = "prodimopy", specifier = ">=2.5.1" },
+    { name = "prodimopy", specifier = ">=2.5.2" },
+    { name = "tomli-w", specifier = ">=1.2.0" },
 ]
 
 [[package]]
