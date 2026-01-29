@@ -14,6 +14,7 @@ dependencies = [
     "nonos>=0.19.1",
     "numpy>=2.3.5",
     "prodimopy>=2.5.2",
+    "tomli-w>=1.2.0",
 ]
 classifiers = ["Private :: Do Not Upload"]
 

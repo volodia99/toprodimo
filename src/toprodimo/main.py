@@ -2,7 +2,7 @@ import os
 import argparse
 import shutil
 import glob
-import json
+import tomli_w
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -516,8 +516,8 @@ def main(argv: list[str] | None = None) -> int:
             ppm.plot_vertical(models, args.unit_length_au, "rhog", "rhog", xlim=[1, 0])
 
     dargs = vars(args)
-    # Writing CLI args to a JSON file
-    with open(os.path.join(args.prodimo_model_directory, "toprodimo_args.json"), "w") as outfile:
-        json.dump(dargs, outfile, indent=1)
+    # Writing CLI args to a TOML file
+    with open(os.path.join(args.prodimo_model_directory, "toprodimo.full.toml"), "wb") as outfile:
+        tomli_w.dump(dargs, outfile)
 
     return 0
