@@ -1,6 +1,7 @@
 import os
 import argparse
 import shutil
+import glob
 import json
 
 import matplotlib.pyplot as plt
@@ -9,6 +10,7 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as uc
 
+import inifix
 from nonos.api import GasDataSet
 
 import prodimopy.interface2D.infile as pin2D
@@ -16,9 +18,13 @@ import prodimopy.read as pread
 import prodimopy.plot as pplot
 import prodimopy.plot_models as pplotm
 
-from toprodimo._typing import F, FArray2D
+from toprodimo._typing import F, FArray1D, FArray2D
 
 plt.style.use("nonos.default")
+
+def computeSizeMM(betai:FArray1D, *, internal_rho:u.Quantity, unit_length_au:u.Quantity, unit_mass_msun:u.Quantity) -> u.Quantity:
+    sizeMM_k = betai/(np.sqrt(np.pi/8.0)*internal_rho.to(u.g/u.cm/u.cm/u.cm)*(unit_length_au.to(u.cm))**2/unit_mass_msun.to(u.g))
+    return sizeMM_k.to(u.mm)
 
 def iterative_mean(*, data:FArray2D[F], count:int=0, mean:FArray2D[F]|None=None) -> FArray2D[F]:
     """
@@ -48,13 +54,14 @@ def vpol2cart(*, vr:FArray2D[F], vtheta:FArray2D[F], r:FArray2D[F], theta:FArray
     return (vx, vz)
 
 # TODO: take care of 2D dust fluids when prodimo can handle it
-def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|float=None, unit_mass_msun:None|float=None):
+def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|float=None, unit_mass_msun:None|float=None, internal_rho:None|float=None):
     """
     Load the simulation model from a simulation file
     - file (str|int): absolute path of the simulation output file, or output number
     - directory (str): location of the simulated output file, if described by its output number
     - unit_length_au (float): typical length in au
     - unit_mass_msun (float): typical mass in solMass
+    - internal_rho (float): internal density in g/cm3, necessary to define drag size in idefix.ini
 
     Returns a prodimopy Interface2Din object.
     """
@@ -81,12 +88,15 @@ def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|flo
     # TODO: check if prodimo parameter how temperature is computed
     MUSTAR = 1.37
     UNIT_TEMPERATURE = ((MUSTAR*uc.m_p*uc.G/uc.k_B)*unit_mass_msun/unit_length_au).to(u.K)
+    internal_rho = internal_rho * (u.g/u.cm/u.cm/u.cm)
 
     density = None
     velocity_r = None
     velocity_theta = None
     velocity_phi = None
     temperature = None
+    dust_density = None
+    dust_size_distribution = None
 
     if ds.native_geometry!="spherical":
         raise ValueError(f"native_geometry='{ds.native_geometry}' should be 'spherical'")
@@ -127,6 +137,27 @@ def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|flo
         mean=temperature
     )
 
+    directory = ds._parameters_input["directory"]
+    inifile = inifix.load(os.path.join(directory, "idefix.ini"))
+    dragType = inifile["Dust"]["drag"][0]
+    if dragType!="size":
+        raise ValueError(f"{dragType=} should be 'size'.")
+    dustBeta = np.array(inifile["Dust"]["drag"][1:])
+    dustSize_cm = computeSizeMM(
+        dustBeta, 
+        internal_rho=internal_rho,
+        unit_length_au=unit_length_au,
+        unit_mass_msun=unit_mass_msun,
+        ).to(u.cm)
+    dustSize_cm = np.sort(dustSize_cm)
+    dust_density = np.empty((len(dustSize_cm),)+density.shape)
+    for kk in range(len(dustSize_cm)):
+        dust_density[kk, ...] = iterative_mean(
+                data=ds[f"DUST{kk}_RHO"].data[:,0:ntheta//2+1,0], 
+                count=0, 
+                mean=None,
+            )
+
     rr, tt = np.meshgrid(r, theta, indexing="ij")
     xx, zz = pol2cart(
         r=rr, 
@@ -155,14 +186,20 @@ def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|flo
     velocity[:, :, 2] = vz
 
     # flip so that z=0 has zidx=0
-    xx = np.flip(xx, 1)
-    zz = np.flip(zz, 1)
-    density = np.flip(density, 1)
-    velocity = np.flip(velocity, 1)
-    temperature = np.flip(temperature, 1)
+    xx = np.flip(xx, -1)
+    zz = np.flip(zz, -1)
+    density = np.flip(density, -1)
+    velocity = np.flip(velocity, -1)
+    temperature = np.flip(temperature, -1)
+    dust_density = np.flip(dust_density, -1)
 
     # z can be < 0 in the midplane: set it to zero
     zz[zz[:, 0] < 0, 0] = 0.0
+
+    dust_size_distribution = pin2D.DustSizeDistribution(
+        asize=dustSize_cm.value,
+        fsize_rho=((dust_density * UNIT_DENSITY).to(u.g / u.cm**3)).value,
+    )
 
     # Use the prodimopy tools to generate an object for further processing
     return pin2D.Interface2Din(
@@ -171,6 +208,7 @@ def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|flo
         rhoGas=((density * UNIT_DENSITY).to(u.g / u.cm**3)).value,
         velocity=((velocity * UNIT_VELOCITY).to(u.cm / u.s)).value,
         tgas=(temperature * UNIT_TEMPERATURE).value,
+        dustSDF=dust_size_distribution,
     )
 
 def get_parser() -> argparse.ArgumentParser:
@@ -234,6 +272,14 @@ def get_parser() -> argparse.ArgumentParser:
         )
 
         subparser.add_argument(
+            "-internal_rho",
+            type=float,
+            default=None,
+            required=True,
+            help="required: internal density of dust particles [g/cm3].",
+        )
+
+        subparser.add_argument(
             "-mask_inside",
             type=float,
             default=1.2,
@@ -246,7 +292,7 @@ def get_parser() -> argparse.ArgumentParser:
             type=str,
             default=None,
             dest="init_prodimo_model_directory",
-            help="location of the initialized prodimo model from which to extract ProDiMo.out. Works only with -to_pmdir.",
+            help="location of the initialized prodimo model from which to extract ProDiMo.out and *.in. Works only with -to_pmdir.",
         )
 
         subparser.add_argument(
@@ -340,6 +386,28 @@ def plot_model(model, pdf_name:str=""):
                 cmap=cmap,
             )
 
+        if os.path.basename(pdf_name)=="prodimo":
+            rhodmin = np.nanmin(model.rhod[np.nonzero(model.rhod)])
+            rhodmax = np.nanmax(model.rhod)
+            pp.plot_cont(
+                model,
+                "rhod",
+                **constyle,
+                zlim=[rhogmin, rhogmax],
+                extend="both",
+                xlim=xlim,
+                ylim=ylim,
+            )
+            pp.plot_cont(
+                model,
+                "rhod",
+                **constyle,
+                zlim=[rhogmin, rhogmax],
+                extend="both",
+                xlim=[0.75*xmin, 3*xmin],
+                ylim=[0, 3*xmin],
+            )
+
         # Check the Keplerian velocity
         pp.plot_radial(
             model,
@@ -387,6 +455,7 @@ def main(argv: list[str] | None = None) -> int:
         directory=directory, 
         unit_length_au=args.unit_length_au, 
         unit_mass_msun=args.unit_mass_msun, 
+        internal_rho=args.internal_rho,
     )
 
     # Make some manipulations
@@ -420,6 +489,8 @@ def main(argv: list[str] | None = None) -> int:
             "Check if you are sure of what you are doing. If you do, delete the preexisting 'ProDiMo.out' file yourself."
         )
     shutil.copy2(os.path.join(args.init_prodimo_model_directory, "ProDiMo.out"), args.prodimo_model_directory)
+    for file in glob.glob(os.path.join(args.init_prodimo_model_directory, "*.in")):
+        shutil.copy2(file, args.prodimo_model_directory)
 
     prodimo_model = pread.read_prodimo(args.prodimo_model_directory, name="ProDiMo model")
 
