@@ -149,9 +149,9 @@ def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|flo
         unit_length_au=unit_length_au,
         unit_mass_msun=unit_mass_msun,
         ).to(u.cm)
-    dustSize_cm = np.sort(dustSize_cm)
+    dustSize_cm_ascending_indices = np.argsort(dustSize_cm)
     dust_density = np.empty((len(dustSize_cm),)+density.shape)
-    for kk in range(len(dustSize_cm)):
+    for kk in dustSize_cm_ascending_indices:
         dust_density[kk, ...] = iterative_mean(
                 data=ds[f"DUST{kk}_RHO"].data[:,0:ntheta//2+1,0], 
                 count=0, 
