@@ -54,8 +54,8 @@ uv run toprodimo from_path -help
 ```
 
 ```shell
-usage: toprodimo from_path [-h] -unit_length_au unit_length_au -unit_mass_msun unit_mass_msun [-mask_inside MASK_INSIDE]
-                           [-from_pmdir INIT_PRODIMO_MODEL_DIRECTORY] [-to_pmdir PRODIMO_MODEL_DIRECTORY] [-plot]
+usage: toprodimo from_path [-h] -unit_length_au UNIT_LENGTH_AU -unit_mass_msun UNIT_MASS_MSUN -internal_rho INTERNAL_RHO
+                           [-mask_inside MASK_INSIDE] [-from_pmdir INIT_PRODIMO_MODEL_DIRECTORY] [-to_pmdir PRODIMO_MODEL_DIRECTORY] [-plot]
                            file_path
 
 positional arguments:
@@ -63,19 +63,19 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  -unit_length_au unit_length_au
+  -unit_length_au UNIT_LENGTH_AU
                         required: code unit of length [au].
-  -unit_mass_msun unit_mass_msun  required: code unit of mass [solMass].
+  -unit_mass_msun UNIT_MASS_MSUN
+                        required: code unit of mass [solMass].
+  -internal_rho INTERNAL_RHO
+                        required: internal density of dust particles [g/cm3].
   -mask_inside MASK_INSIDE
                         mask the velocities inside given radius [inner edge unit]. put 0 for no masking. (default: 1.2).
   -from_pmdir, -from INIT_PRODIMO_MODEL_DIRECTORY
-                        location of the initialized prodimo model from which to extract ProDiMo.out. Works only with
-                        -to_pmdir.
+                        location of the initialized prodimo model from which to extract ProDiMo.out and *.in. Works only with -to_pmdir.
   -to_pmdir, -to PRODIMO_MODEL_DIRECTORY
-                        location of the prodimo model on which the simulation model is then interpolated. Works only
-                        with -from_pmdir.
+                        location of the prodimo model on which the simulation model is then interpolated. Works only with -from_pmdir.
   -plot, -p             rough plotting procedure to check the validity of toprodimo results.
-
 ```
 
 2. By giving the output number `file_on` and the directory where to find the file corresponding file name, using `from_on` and `-dir`.
@@ -86,8 +86,8 @@ uv run toprodimo from_on -help
 ```
 
 ```shell
-usage: toprodimo from_on [-h] -dir DIRECTORY -unit_length_au unit_length_au -unit_mass_msun unit_mass_msun [-mask_inside MASK_INSIDE]
-                         [-from_pmdir INIT_PRODIMO_MODEL_DIRECTORY] [-to_pmdir PRODIMO_MODEL_DIRECTORY] [-plot]
+usage: toprodimo from_on [-h] -dir DIRECTORY -unit_length_au UNIT_LENGTH_AU -unit_mass_msun UNIT_MASS_MSUN -internal_rho INTERNAL_RHO
+                         [-mask_inside MASK_INSIDE] [-from_pmdir INIT_PRODIMO_MODEL_DIRECTORY] [-to_pmdir PRODIMO_MODEL_DIRECTORY] [-plot]
                          file_on
 
 positional arguments:
@@ -96,17 +96,18 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   -dir DIRECTORY        required: location of the simulated output, if described by its output number.
-  -unit_length_au unit_length_au
+  -unit_length_au UNIT_LENGTH_AU
                         required: code unit of length [au].
-  -unit_mass_msun unit_mass_msun  required: code unit of mass [solMass].
+  -unit_mass_msun UNIT_MASS_MSUN
+                        required: code unit of mass [solMass].
+  -internal_rho INTERNAL_RHO
+                        required: internal density of dust particles [g/cm3].
   -mask_inside MASK_INSIDE
                         mask the velocities inside given radius [inner edge unit]. put 0 for no masking. (default: 1.2).
   -from_pmdir, -from INIT_PRODIMO_MODEL_DIRECTORY
-                        location of the initialized prodimo model from which to extract ProDiMo.out. Works only with
-                        -to_pmdir.
+                        location of the initialized prodimo model from which to extract ProDiMo.out and *.in. Works only with -to_pmdir.
   -to_pmdir, -to PRODIMO_MODEL_DIRECTORY
-                        location of the prodimo model on which the simulation model is then interpolated. Works only
-                        with -from_pmdir.
+                        location of the prodimo model on which the simulation model is then interpolated. Works only with -from_pmdir.
   -plot, -p             rough plotting procedure to check the validity of toprodimo results.
 ```
 
@@ -122,7 +123,9 @@ options:
 
 In order for the procedure to work, you need to keep in mind that:
 - `toprodimo` needs the typical `unit_length_au` and `unit_mass_msun` of the simulated model.
+- `toprodimo` needs the internal density used to compute the simulation
 - `toprodimo` works on top of an initialized ProDiMo model that has to be run beforehand with the typical parameters of the simulated model (disk, star, ...). The corresponding ProDiMo.out parameter file is then copied to a new prodimo directory to perform the interpolation of the simulated data to this new ProDiMo model.
 
 See also the [ProDiMo documentation](https://prodimowiki.readthedocs.io/en/latest/userguide/interface2D.html).
+
 
