@@ -19,6 +19,7 @@ import prodimopy.plot as pplot
 import prodimopy.plot_models as pplotm
 
 from toprodimo._typing import F, FArray1D, FArray2D
+from toprodimo._parsing import is_set
 
 plt.style.use("nonos.default")
 
@@ -88,7 +89,10 @@ def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|flo
     # TODO: check if prodimo parameter how temperature is computed
     MUSTAR = 1.37
     UNIT_TEMPERATURE = ((MUSTAR*uc.m_p*uc.G/uc.k_B)*unit_mass_msun/unit_length_au).to(u.K)
-    internal_rho = internal_rho * (u.g/u.cm/u.cm/u.cm)
+    include_dust = False
+    if is_set(internal_rho):
+        include_dust = True
+        internal_rho = internal_rho * (u.g/u.cm/u.cm/u.cm)
 
     density = None
     velocity_r = None
@@ -137,26 +141,27 @@ def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|flo
         mean=temperature
     )
 
-    directory = ds._parameters_input["directory"]
-    inifile = inifix.load(os.path.join(directory, "idefix.ini"))
-    dragType = inifile["Dust"]["drag"][0]
-    if dragType!="size":
-        raise ValueError(f"{dragType=} should be 'size'.")
-    dustBeta = np.array(inifile["Dust"]["drag"][1:])
-    dustSize_cm = computeSizeMM(
-        dustBeta, 
-        internal_rho=internal_rho,
-        unit_length_au=unit_length_au,
-        unit_mass_msun=unit_mass_msun,
-        ).to(u.cm)
-    dustSize_cm_ascending_indices = np.argsort(dustSize_cm)
-    dust_density = np.empty((len(dustSize_cm),)+density.shape)
-    for kk in dustSize_cm_ascending_indices:
-        dust_density[kk, ...] = iterative_mean(
-                data=ds[f"DUST{kk}_RHO"].data[:,0:ntheta//2+1,0], 
-                count=0, 
-                mean=None,
-            )
+    if include_dust:
+        directory = ds._parameters_input["directory"]
+        inifile = inifix.load(os.path.join(directory, "idefix.ini"))
+        dragType = inifile["Dust"]["drag"][0]
+        if dragType!="size":
+            raise ValueError(f"{dragType=} should be 'size'.")
+        dustBeta = np.array(inifile["Dust"]["drag"][1:])
+        dustSize_cm = computeSizeMM(
+            dustBeta, 
+            internal_rho=internal_rho,
+            unit_length_au=unit_length_au,
+            unit_mass_msun=unit_mass_msun,
+            ).to(u.cm)
+        dustSize_cm_ascending_indices = np.argsort(dustSize_cm)
+        dust_density = np.empty((len(dustSize_cm),)+density.shape)
+        for kk in dustSize_cm_ascending_indices:
+            dust_density[kk, ...] = iterative_mean(
+                    data=ds[f"DUST{kk}_RHO"].data[:,0:ntheta//2+1,0], 
+                    count=0, 
+                    mean=None,
+                )
 
     rr, tt = np.meshgrid(r, theta, indexing="ij")
     xx, zz = pol2cart(
@@ -191,15 +196,17 @@ def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|flo
     density = np.flip(density, -1)
     velocity = np.flip(velocity, -1)
     temperature = np.flip(temperature, -1)
-    dust_density = np.flip(dust_density, -1)
+    if include_dust:
+        dust_density = np.flip(dust_density, -1)
 
     # z can be < 0 in the midplane: set it to zero
     zz[zz[:, 0] < 0, 0] = 0.0
 
-    dust_size_distribution = pin2D.DustSizeDistribution(
-        asize=dustSize_cm.value,
-        fsize_rho=((dust_density * UNIT_DENSITY).to(u.g / u.cm**3)).value,
-    )
+    if include_dust:
+        dust_size_distribution = pin2D.DustSizeDistribution(
+            asize=dustSize_cm.value,
+            fsize_rho=((dust_density * UNIT_DENSITY).to(u.g / u.cm**3)).value,
+        )
 
     # Use the prodimopy tools to generate an object for further processing
     return pin2D.Interface2Din(
@@ -275,8 +282,7 @@ def get_parser() -> argparse.ArgumentParser:
             "-internal_rho",
             type=float,
             default=None,
-            required=True,
-            help="required: internal density of dust particles [g/cm3].",
+            help="to include if dust retrieved from idefix: internal density of dust particles [g/cm3].",
         )
 
         subparser.add_argument(
@@ -448,6 +454,9 @@ def main(argv: list[str] | None = None) -> int:
     elif args.input_processing=="from_on":
         file = args.file_on
         directory = args.directory
+
+    if args.internal_rho is None:
+        args.internal_rho = "unset"
 
     # load the model
     model = load_model(
