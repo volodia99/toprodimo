@@ -347,7 +347,7 @@ def main(argv: list[str] | None = None) -> int:
             f"expecting {expected_length_mandatory} mandatory parameters, not {len(MANDATORY_SET)}."
         )
     if "dust" in config_file_layer["simulation"]["component"]:
-        MANDATORY_SET.update("internal_rho")
+        MANDATORY_SET.update(["internal_rho"])
     if MANDATORY_SET.difference(set(list_of_middle_keys(config_file_layer))):
         raise ValueError(
             f"at least one mandatory parameter is missing: {MANDATORY_SET.difference(set(list_of_middle_keys(config_file_layer)))}"
@@ -399,7 +399,6 @@ def main(argv: list[str] | None = None) -> int:
     rrnew = np.sqrt(xxnew**2 + zznew**2)
     rincut = rrnew.min()*0.95  # use this as the cut ...
 
-    vzcart = model.velocity[:, :, 2]
     mask_inner_edge = np.zeros_like(xxnew, dtype=bool)
     mask_inner_edge = (xxnew < rincut)
 
