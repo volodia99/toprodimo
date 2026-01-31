@@ -19,7 +19,8 @@ import prodimopy.plot as pplot
 import prodimopy.plot_models as pplotm
 
 from toprodimo._typing import F, FArray1D, FArray2D
-from toprodimo._parsing import is_set
+from toprodimo._parsing import is_set, list_of_middle_keys
+from dw3t.default import DEFAULT_LAYER, MANDATORY_SET
 
 plt.style.use("nonos.default")
 
@@ -55,31 +56,23 @@ def vpol2cart(*, vr:FArray2D[F], vtheta:FArray2D[F], r:FArray2D[F], theta:FArray
     return (vx, vz)
 
 # TODO: take care of 2D dust fluids when prodimo can handle it
-def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|float=None, unit_mass_msun:None|float=None, internal_rho:None|float=None):
+def load_model(
+    ds:GasDataSet, 
+    unit_length_au:float, 
+    unit_mass_msun:float, 
+    component:list,
+    config:dict,
+    ):
     """
     Load the simulation model from a simulation file
-    - file (str|int): absolute path of the simulation output file, or output number
-    - directory (str): location of the simulated output file, if described by its output number
+    - ds (GasDataSet): nonos.api.analysis.GasDataSet
     - unit_length_au (float): typical length in au
     - unit_mass_msun (float): typical mass in solMass
-    - internal_rho (float): internal density in g/cm3, necessary to define drag size in idefix.ini
+    - component (list[str]): what components are included
+    - config (dict): ChainMap containing all the parameters 
 
     Returns a prodimopy Interface2Din object.
     """
-
-    if isinstance(file, str):
-        if directory is not None:
-            raise ValueError(
-                f"if {file=} is an absolute path, {directory=} should not be defined"
-            )
-        ds = GasDataSet(file)
-    elif isinstance(file, int):
-        if directory is None:
-            raise ValueError(
-                f"if {file=} is an integer output number, {directory=} should be defined"
-            )
-        ds = GasDataSet(file, directory=directory)
-
     # For converting code units to real units
     unit_length_au = unit_length_au * u.au
     unit_mass_msun = unit_mass_msun * u.M_sun
@@ -89,10 +82,8 @@ def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|flo
     # TODO: check if prodimo parameter how temperature is computed
     MUSTAR = 1.37
     UNIT_TEMPERATURE = ((MUSTAR*uc.m_p*uc.G/uc.k_B)*unit_mass_msun/unit_length_au).to(u.K)
-    include_dust = False
-    if is_set(internal_rho):
-        include_dust = True
-        internal_rho = internal_rho * (u.g/u.cm/u.cm/u.cm)
+    if "dust" in component:
+        internal_rho = config["simulation"]["internal_rho"] * (u.g/u.cm/u.cm/u.cm)
 
     density = None
     velocity_r = None
@@ -115,33 +106,40 @@ def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|flo
         if not np.isclose(np.mean(theta_edge)-np.pi/2, np.float32(0.0), atol=min_half_dtheta_edge):
             raise NotImplementedError("Should be symmetric compared to the midplane (pi/2), in order to extract upper half")
         theta = theta[0:ntheta//2+1]
-    density = iterative_mean(
-        data=ds["RHO"].data[:,0:ntheta//2+1,0], 
-        count=0, 
-        mean=density
-    )
-    velocity_r = iterative_mean(
-        data=ds["VX1"].data[:,0:ntheta//2+1,0], 
-        count=0, 
-        mean=velocity_r
-    )
-    velocity_theta = iterative_mean(
-        data=ds["VX2"].data[:,0:ntheta//2+1,0], 
-        count=0, 
-        mean=velocity_theta
-    )
-    velocity_phi = iterative_mean(
-        data=ds["VX3"].data[:,0:ntheta//2+1,0], 
-        count=0, 
-        mean=velocity_phi
-    )
-    temperature = iterative_mean(
-        data=ds["PRS"].data[:,0:ntheta//2+1,0]/ds["RHO"].data[:,0:ntheta//2+1,0], 
-        count=0, 
-        mean=temperature
-    )
+    if "gas" in component:
+        density = iterative_mean(
+            data=ds["RHO"].data[:,0:ntheta//2+1,0], 
+            count=0, 
+            mean=density
+        )
+        density = ((density * UNIT_DENSITY).to(u.g / u.cm**3)).value
 
-    if include_dust:
+        velocity_r = iterative_mean(
+            data=ds["VX1"].data[:,0:ntheta//2+1,0], 
+            count=0, 
+            mean=velocity_r
+        )
+        velocity_theta = iterative_mean(
+            data=ds["VX2"].data[:,0:ntheta//2+1,0], 
+            count=0, 
+            mean=velocity_theta
+        )
+        velocity_phi = iterative_mean(
+            data=ds["VX3"].data[:,0:ntheta//2+1,0], 
+            count=0, 
+            mean=velocity_phi
+        )
+        velocity = ((np.dstack((velocity_r, velocity_theta, velocity_phi))*UNIT_VELOCITY).to(u.cm / u.s)).value
+
+        temperature = iterative_mean(
+            data=ds["PRS"].data[:,0:ntheta//2+1,0]/ds["RHO"].data[:,0:ntheta//2+1,0], 
+            count=0, 
+            mean=temperature
+        )
+        temperature = (temperature * UNIT_TEMPERATURE).value
+
+    if "dust" in component:
+        print(f"WARN: 'dust' not implemented in a general way with nonos. Implementation specific to IDEFIX.")
         directory = ds._parameters_input["directory"]
         inifile = inifix.load(os.path.join(directory, "idefix.ini"))
         dragType = inifile["Dust"]["drag"][0]
@@ -168,41 +166,34 @@ def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|flo
         r=rr, 
         theta=tt
     )
-
-    velocity = np.dstack(
-        (
-            velocity_r,
-            velocity_theta,
-            velocity_phi,
-        )
-    )
-    # velocity is in vr,vtheta,vphi
-    # get vx and vz from vr and vtheta
-    vy = velocity[:, :, 2]
-    vx, vz = vpol2cart(
-        vr=velocity[:, :, 0], 
-        vtheta=velocity[:, :, 1], 
-        r=rr, 
-        theta=tt
-    )
-
-    velocity[:, :, 0] = vx
-    velocity[:, :, 1] = vy
-    velocity[:, :, 2] = vz
-
     # flip so that z=0 has zidx=0
     xx = np.flip(xx, -1)
     zz = np.flip(zz, -1)
-    density = np.flip(density, -1)
-    velocity = np.flip(velocity, -1)
-    temperature = np.flip(temperature, -1)
-    if include_dust:
-        dust_density = np.flip(dust_density, -1)
 
     # z can be < 0 in the midplane: set it to zero
     zz[zz[:, 0] < 0, 0] = 0.0
 
-    if include_dust:
+    if "gas" in component:
+        # velocity is in vr,vtheta,vphi
+        # get vx and vz from vr and vtheta
+        vy = velocity[:, :, 2]
+        vx, vz = vpol2cart(
+            vr=velocity[:, :, 0], 
+            vtheta=velocity[:, :, 1], 
+            r=rr, 
+            theta=tt
+        )
+
+        velocity[:, :, 0] = vx
+        velocity[:, :, 1] = vy
+        velocity[:, :, 2] = vz
+
+        # flip so that z=0 has zidx=0
+        density = np.flip(density, -1)
+        velocity = np.flip(velocity, -1)
+        temperature = np.flip(temperature, -1)
+    if "dust" in component:
+        dust_density = np.flip(dust_density, -1)
         dust_size_distribution = pin2D.DustSizeDistribution(
             asize=dustSize_cm.value,
             fsize_rho=((dust_density * UNIT_DENSITY).to(u.g / u.cm**3)).value,
@@ -212,9 +203,9 @@ def load_model(file:str|int, *, directory:None|str=None, unit_length_au:None|flo
     return pin2D.Interface2Din(
         ((xx * unit_length_au).to(u.cm)).value,
         ((zz * unit_length_au).to(u.cm)).value,
-        rhoGas=((density * UNIT_DENSITY).to(u.g / u.cm**3)).value,
-        velocity=((velocity * UNIT_VELOCITY).to(u.cm / u.s)).value,
-        tgas=(temperature * UNIT_TEMPERATURE).value,
+        rhoGas=density,
+        velocity=velocity,
+        tgas=temperature,
         dustSDF=dust_size_distribution,
     )
 
@@ -225,97 +216,11 @@ def get_parser() -> argparse.ArgumentParser:
     )
     parser.suggest_on_error = True  # type: ignore [attr-defined]
 
-    subparsers = parser.add_subparsers(
-        help="Choice between from_on (from output number) and from_path (from absolute path to file name)", 
-        dest="input_processing"
-    )
-
-    ###
-    ## Create the parser for the "on" command
-    parser_on = subparsers.add_parser(
-        "from_on", 
-        help="Work with output number approach. Try 'toprodimo from_on -h' for more info."
-    )
-    parser_on.add_argument(
-        "file_on", 
-        type=int, 
-        help="Get simulation output from its output number"
-    )
-
-    parser_on.add_argument(
-        "-dir",
-        type=str,
-        required=True,
-        dest="directory",
-        help="required: location of the simulated output, if described by its output number.",
-    )
-
-    ## Create the parser for the "name" command
-    parser_file = subparsers.add_parser(
-        "from_path", 
-        help="Work with file name approach. Try 'toprodimo from_path -h' for more info."
-    )
-    parser_file.add_argument(
-        "file_path", 
+    parser.add_argument(
+        "parameter_file", 
         type=str, 
-        help="Get simulation output from its name"
+        help="work on toprodimo parameter file"
     )
-
-    for subparser in [parser_on, parser_file]:
-        subparser.add_argument(
-            "-unit_length_au",
-            type=float,
-            default=None,
-            required=True,
-            help="required: code unit of length [au].",
-        )
-
-        subparser.add_argument(
-            "-unit_mass_msun",
-            type=float,
-            default=None,
-            required=True,
-            help="required: code unit of mass [solMass].",
-        )
-
-        subparser.add_argument(
-            "-internal_rho",
-            type=float,
-            default=None,
-            help="to include if dust retrieved from idefix: internal density of dust particles [g/cm3].",
-        )
-
-        subparser.add_argument(
-            "-mask_inside",
-            type=float,
-            default=1.2,
-            help="mask the velocities inside given radius [inner edge unit]. put 0 for no masking. (default: 1.2).",
-        )
-
-        subparser.add_argument(
-            "-from_pmdir",
-            "-from",
-            type=str,
-            default=None,
-            dest="init_prodimo_model_directory",
-            help="location of the initialized prodimo model from which to extract ProDiMo.out and *.in. Works only with -to_pmdir.",
-        )
-
-        subparser.add_argument(
-            "-to_pmdir",
-            "-to",
-            type=str,
-            default=None,
-            dest="prodimo_model_directory",
-            help="location of the prodimo model on which the simulation model is then interpolated. Works only with -from_pmdir.",
-        )
-
-        subparser.add_argument(
-            "-plot",
-            "-p",
-            action="store_true",
-            help="rough plotting procedure to check the validity of toprodimo results.",
-        )
 
     return parser
 
@@ -429,42 +334,60 @@ def plot_model(model, pdf_name:str=""):
 def main(argv: list[str] | None = None) -> int:
     parser = get_parser()
     args = parser.parse_args(argv)
+    with open(args.parameter_file, "rb") as f:
+        config_file_layer = tomli.load(f)
+
     print("")
 
-    if not all((args.init_prodimo_model_directory, args.prodimo_model_directory)):
+    expected_length_mandatory = 7
+    if len(MANDATORY_SET)!=expected_length_mandatory:
         raise ValueError(
-            f"init_prodimo_model_directory={args.init_prodimo_model_directory}, prodimo_model_directory={args.prodimo_model_directory}. "\
-            "Both the init_prodimo_model_directory and the prodimo_model_directory have to be specified, "\
-            "using: -from 'init_prodimo_model_directory' -to 'prodimo_model_directory'"\
+            f"expecting {expected_length_mandatory} mandatory parameters, not {len(MANDATORY_SET)}."
+        )
+    if "dust" in config_file_layer["simulation"]["component"]:
+        MANDATORY_SET.update("internal_rho")
+    if MANDATORY_SET.difference(set(list_of_middle_keys(config_file_layer))):
+        raise ValueError(
+            f"at least one mandatory parameter is missing: {MANDATORY_SET.difference(set(list_of_middle_keys(config_file_layer)))}"
         )
 
-    if (not(os.path.isdir(args.init_prodimo_model_directory))) | (not(os.path.exists(os.path.join(os.getcwd(), args.init_prodimo_model_directory, "ProDiMo.out")))):
+    config = DeepChainMap(config_file_layer, DEFAULT_LAYER)
+    if not is_set(config["simulation"]["mask_inside"]):
+        config["simulation"]["mask_inside"] = 0.0
+
+    component = config["simulation"]["component"]
+    component = np.atleast_1d(component).tolist()
+    if not (set(component) & set(["gas","dust"])):
         raise ValueError(
-            f"{os.path.join(args.init_prodimo_model_directory, 'ProDiMo.out')} must exist. "\
+            f"{component=} should be 'dust', 'gas' or ['dust', 'gas']."
+        )
+
+    if not all((config["prodimo"]["from"], config["prodimo"]["to"])):
+        raise ValueError(
+            f"init_prodimo_model_directory={config["prodimo"]["from"]}, prodimo_model_directory={config["prodimo"]["to"]}. "\
+            "Both the init_prodimo_model_directory and the prodimo_model_directory have to be specified in .toml file, "\
+            "using from = 'init_prodimo_model_directory' and to = 'prodimo_model_directory'"\
+        )
+
+    if (not(os.path.isdir(config["prodimo"]["from"]))) | (not(os.path.exists(os.path.join(os.getcwd(), config["prodimo"]["from"], "ProDiMo.out")))):
+        raise ValueError(
+            f"{os.path.join(config["prodimo"]["from"], 'ProDiMo.out')} must exist. "\
             "In order to do the conversion from simulation outputs to ProDiMo, an init ProDiMo model has to be run beforehand. "\
             "The resulting proper grid and parameters will then be used by ProDiMo. "\
             "One needs to run it at least once with stop_after_init=.true. in order to create the ProDiMo.out file."
         )
 
-    if args.input_processing=="from_path":
-        file = args.file_path
-        directory = None
-        if not(os.path.isfile(file)):
-            raise FileNotFoundError(f"absolute path of the file '{file}' must exist.")
-    elif args.input_processing=="from_on":
-        file = args.file_on
-        directory = args.directory
-
-    if args.internal_rho is None:
-        args.internal_rho = "unset"
+    file = config["simulation"]["on"]
+    input_dir = config["simulation"]["input_dir"]
+    ds = GasDataSet(file, directory=input_dir)
 
     # load the model
     model = load_model(
-        file=file,
-        directory=directory, 
-        unit_length_au=args.unit_length_au, 
-        unit_mass_msun=args.unit_mass_msun, 
-        internal_rho=args.internal_rho,
+        ds=ds,
+        unit_length_au=config["simulation"]["unit_length_au"], 
+        unit_mass_msun=config["simulation"]["unit_mass_msun"], 
+        component=component,
+        config=config,
     )
 
     # Make some manipulations
@@ -478,55 +401,54 @@ def main(argv: list[str] | None = None) -> int:
     mask_inner_edge = np.zeros_like(xxnew, dtype=bool)
     mask_inner_edge = (xxnew < rincut)
 
-    if args.mask_inside:
-        print(f"INFO: canceling (vx, vz) inside {args.mask_inside:.2f} r_inner...\n")
-        model.velocity[(xxnew < rincut * args.mask_inside), 0] = 0.0
-        model.velocity[(xxnew < rincut * args.mask_inside), 2] = 0.0
+    if config["simulation"]["mask_inside"]:
+        print(f"INFO: canceling (vx, vz) inside {config["simulation"]["mask_inside"]:.2f} r_inner...\n")
+        model.velocity[(xxnew < rincut * config["simulation"]["mask_inside"]), 0] = 0.0
+        model.velocity[(xxnew < rincut * config["simulation"]["mask_inside"]), 2] = 0.0
 
     model.rhoGas[mask_inner_edge] = np.nan
     model.tgas[mask_inner_edge] = np.nan
     for i in range(3):
         model.velocity[mask_inner_edge, i] = np.nan
 
-    if not(os.path.isdir(args.prodimo_model_directory)):
-        print(f"WARN: '{args.prodimo_model_directory}' must exist. Creating it...\n")
-        os.makedirs(args.prodimo_model_directory)
+    if not(os.path.isdir(config["prodimo"]["to"])):
+        print(f"WARN: '{config["prodimo"]["to"]}' must exist. Creating it...\n")
+        os.makedirs(config["prodimo"]["to"])
 
-    if os.path.isfile(os.path.join(args.prodimo_model_directory, "ProDiMo.out")):
+    if os.path.isfile(os.path.join(config["prodimo"]["to"], "ProDiMo.out")):
         raise ValueError(
-            f"{os.path.join(args.prodimo_model_directory, 'ProDiMo.out')} already exists. "\
+            f"{os.path.join(config["prodimo"]["to"], 'ProDiMo.out')} already exists. "\
             "Check if you are sure of what you are doing. If you do, delete the preexisting 'ProDiMo.out' file yourself."
         )
-    shutil.copy2(os.path.join(args.init_prodimo_model_directory, "ProDiMo.out"), args.prodimo_model_directory)
-    for file in glob.glob(os.path.join(args.init_prodimo_model_directory, "*.in")):
-        shutil.copy2(file, args.prodimo_model_directory)
+    shutil.copy2(os.path.join(config["prodimo"]["from"], "ProDiMo.out"), config["prodimo"]["to"])
+    for file in glob.glob(os.path.join(config["prodimo"]["from"], "*.in")):
+        shutil.copy2(file, config["prodimo"]["to"])
 
-    prodimo_model = pread.read_prodimo(args.prodimo_model_directory, name="ProDiMo model")
+    prodimo_model = pread.read_prodimo(config["prodimo"]["to"], name="ProDiMo model")
 
     # The new 2D input files are written to the prodimo_model directory
     interpolated_prodimo_model = model.toProDiMo(prodimo_model, outdir=prodimo_model.directory, fixmethod=0)
 
-    if args.plot:
+    if config["prodimo"]["plot"]:
         pmodel = model.get_pmodel()
         # Plot directly the data from the simulation
-        plot_model(pmodel, pdf_name=os.path.join(args.prodimo_model_directory, "simulation"))
+        plot_model(pmodel, pdf_name=os.path.join(config["prodimo"]["to"], "simulation"))
 
         # Plot the new ProDiMo model
-        plot_model(interpolated_prodimo_model, pdf_name=os.path.join(args.prodimo_model_directory, "prodimo"))
+        plot_model(interpolated_prodimo_model, pdf_name=os.path.join(config["prodimo"]["to"], "prodimo"))
 
         models = [pmodel, interpolated_prodimo_model]
 
-        with PdfPages(os.path.join(args.prodimo_model_directory, "compare_simulation_prodimo.pdf")) as pdf:
+        with PdfPages(os.path.join(config["prodimo"]["to"], "compare_simulation_prodimo.pdf")) as pdf:
             ppm = pplotm.PlotModels(pdf, styles=["-", "--"])
             # We can directly compare the new intepolated numbers to the original MDH model
             ppm.plot_midplane(models, "rhog", "rhog", ylim=[np.nanmin(models[0].rhog[np.nonzero(models[0].rhog)]), np.nanmax(models[0].rhog)])#[1e-24, 1e-10])
             # This plot shows some deviations, the reason is that we have to few vertical points, and most of them are concentrated towards the midplane
             # where the interpolation is still accurate
-            ppm.plot_vertical(models, args.unit_length_au, "rhog", "rhog", xlim=[1, 0])
+            ppm.plot_vertical(models, config["simulation"]["unit_length_au"], "rhog", "rhog", xlim=[1, 0])
 
-    dargs = vars(args)
-    # Writing CLI args to a TOML file
-    with open(os.path.join(args.prodimo_model_directory, "toprodimo.full.toml"), "wb") as outfile:
-        tomli_w.dump(dargs, outfile)
+    # Writing config to a TOML file
+    with open(os.path.join(config["prodimo"]["to"], "toprodimo.full.toml"), "wb") as outfile:
+        tomli_w.dump(config, outfile)
 
     return 0
