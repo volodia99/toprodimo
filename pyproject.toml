@@ -9,14 +9,15 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "astropy>=7.2.0",
+    "deep-chainmap>=0.1.3",
     "inifix>=6.1.1",
     "matplotlib>=3.10.8",
     "nonos>=0.19.1",
     "numpy>=2.3.5",
     "prodimopy>=2.5.2",
+    "tomli>=2.4.0",
     "tomli-w>=1.2.0",
 ]
-classifiers = ["Private :: Do Not Upload"]
 
 [project.scripts]
 toprodimo = "toprodimo.main:main"
