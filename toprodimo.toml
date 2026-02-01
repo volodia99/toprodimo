@@ -1,5 +1,5 @@
 [simulation]
-on              = 0                                                                     #necessary
+on              = 1                                                                     #necessary
 input_dir       = "tests/data/idefix_1_dust_fluid"                                      #necessary
 unit_length_au  = 93.0                                                                  #necessary
 unit_mass_msun  = 1.2                                                                   #necessary

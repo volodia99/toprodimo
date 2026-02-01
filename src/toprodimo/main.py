@@ -192,7 +192,7 @@ def load_model(
 
         # flip so that z=0 has zidx=0
         density = np.flip(density, -1)
-        velocity = np.flip(velocity, -1)
+        velocity = np.flip(velocity, 1)
         temperature = np.flip(temperature, -1)
     if "dust" in component:
         dust_density = np.flip(dust_density, -1)
@@ -352,6 +352,9 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError(
             f"at least one mandatory parameter is missing: {MANDATORY_SET.difference(set(list_of_middle_keys(config_file_layer)))}"
         )
+    if "dust" not in config_file_layer["simulation"]["component"] and is_set(config_file_layer["simulation"]["internal_rho"]):
+        print("WARN: unused 'internal_rho' when 'dust' not included.")
+        config_file_layer["simulation"]["internal_rho"] = "unset"
 
     config = DeepChainMap(config_file_layer, DEFAULT_LAYER)
     if not is_set(config["simulation"]["mask_inside"]):
