@@ -2,7 +2,7 @@
 [![PyPI](https://img.shields.io/pypi/v/toprodimo.svg?logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/toprodimo/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
-***Interface to interpolate and convert 2D (r, theta) datasets from simulations outputs (readable with [nonos](https://github.com/la-niche/nonos)) to ProDiMo models. Based on the [ProDiMo 2D interface notebook](https://prodimopy.readthedocs.io/en/stable/notebooks/interface2D.html) by Christian Rab***
+***Interface to interpolate and convert 2D (r, theta) datasets from simulation outputs (readable with [nonos](https://github.com/la-niche/nonos)) to ProDiMo models. Based on the [ProDiMo 2D interface notebook](https://prodimopy.readthedocs.io/en/stable/notebooks/interface2D.html) by Christian Rab***
 
 ## Development status
 
@@ -68,6 +68,7 @@ In order for the procedure to work, you need to keep in mind that:
 - `toprodimo` works on top of an initialized ProDiMo model that has to be run beforehand with the typical parameters of the simulated model (disk, star, ...). The corresponding (ProDiMo.out, *.in) files are then copied to a new prodimo directory to perform the interpolation of the simulated data to this new ProDiMo model.
 
 See also the [ProDiMo documentation](https://prodimowiki.readthedocs.io/en/latest/userguide/interface2D.html).
+
 
 
 
