@@ -9,7 +9,6 @@
 *Word of caution*: `toprodimo` has still to be tested, in particular to be sure that everything works smoothly when the ProDiMo model created by `toprodimo` is used in a ProDiMo computation.
 
 To be implemented : 
-- Add flexibility on how the temperature is computed (for now the temperature in the simulation is directly given to ProDiMo, using a fixed solar mean molecular weight of 1.37)
 - For now, `toprodimo` takes only the upper half of a 2D (`r`, `theta`) disk, if `theta` is symmetric compared to the midplane. Could add some flexibility if the user wants to focus on the lower half of the disk, or to average azimuthally a 3D (`r`, `theta`, `phi`) disk, or even add a prescription to extend vertically a 2D (`r`, `phi`) disk (e.g., with vertical hydrostatic equilibrium).  
 
 ## Installation
@@ -69,6 +68,7 @@ In order for the procedure to work, you need to keep in mind that:
 - `toprodimo` works on top of an initialized ProDiMo model that has to be run beforehand with the typical parameters of the simulated model (disk, star, ...). The corresponding (ProDiMo.out, *.in) files are then copied to a new prodimo directory to perform the interpolation of the simulated data to this new ProDiMo model.
 
 See also the [ProDiMo documentation](https://prodimowiki.readthedocs.io/en/latest/userguide/interface2D.html).
+
 
 
 
