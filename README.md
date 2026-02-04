@@ -1,5 +1,5 @@
 # toprodimo
-[![PyPI](https://img.shields.io/pypi/v/kintomo.svg?logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/toprodimo/)
+[![PyPI](https://img.shields.io/pypi/v/toprodimo.svg?logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/toprodimo/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
 ***Interface to interpolate and convert 2D (r, theta) datasets from simulations outputs (readable with [nonos](https://github.com/la-niche/nonos)) to ProDiMo models. Based on the [ProDiMo 2D interface notebook](https://prodimopy.readthedocs.io/en/stable/notebooks/interface2D.html) by Christian Rab***
