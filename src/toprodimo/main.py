@@ -82,8 +82,9 @@ def load_model(
     UNIT_VELOCITY = np.sqrt(uc.G*unit_mass_msun/unit_length_au).to(u.m/u.s)
     # TODO: for now temperature conversion with fixed mustar
     # TODO: check if prodimo parameter how temperature is computed
-    MUSTAR = 1.37
-    UNIT_TEMPERATURE = ((MUSTAR*uc.m_p*uc.G/uc.k_B)*unit_mass_msun/unit_length_au).to(u.K)
+    if config["simulation"]["tgas"]:
+        MUSTAR = config["simulation"]["tgas"]["mu_star"]
+        UNIT_TEMPERATURE = ((MUSTAR*uc.m_p*uc.G/uc.k_B)*unit_mass_msun/unit_length_au).to(u.K)
     if "dust" in component:
         internal_rho = config["simulation"]["internal_rho"] * (u.g/u.cm/u.cm/u.cm)
 
@@ -133,12 +134,18 @@ def load_model(
         )
         velocity = ((np.dstack((velocity_r, velocity_theta, velocity_phi))*UNIT_VELOCITY).to(u.cm / u.s)).value
 
-        temperature = iterative_mean(
-            data=ds["PRS"].data[:,0:ntheta//2+1,0]/ds["RHO"].data[:,0:ntheta//2+1,0], 
-            count=0, 
-            mean=temperature
-        )
-        temperature = (temperature * UNIT_TEMPERATURE).value
+        if config["simulation"]["tgas"]:
+            if config["simulation"]["tgas"]["eos"]=="ideal":
+                temperature = iterative_mean(
+                    data=ds["PRS"].data[:,0:ntheta//2+1,0]/ds["RHO"].data[:,0:ntheta//2+1,0], 
+                    count=0, 
+                    mean=temperature
+                )
+                temperature = (temperature * UNIT_TEMPERATURE).value
+            else:
+                raise ValueError(
+                    f"unrecognized eos={config["simulation"]["tgas"]["eos"]}. Try eos='ideal' when defining tgas."
+                )
 
     if "dust" in component:
         print(f"WARN: 'dust' not implemented in a general way with nonos. Implementation specific to IDEFIX.")
@@ -193,7 +200,8 @@ def load_model(
         # flip so that z=0 has zidx=0
         density = np.flip(density, -1)
         velocity = np.flip(velocity, 1)
-        temperature = np.flip(temperature, -1)
+        if config["simulation"]["tgas"]:
+            temperature = np.flip(temperature, -1)
     if "dust" in component:
         dust_density = np.flip(dust_density, -1)
         dust_size_distribution = pin2D.DustSizeDistribution(
@@ -359,6 +367,8 @@ def main(argv: list[str] | None = None) -> int:
     config = DeepChainMap(config_file_layer, DEFAULT_LAYER)
     if not is_set(config["simulation"]["mask_inside"]):
         config["simulation"]["mask_inside"] = 0.0
+    # if not (config["simulation"]["tgas"]):
+    #     config["simulation"]["tgas"] = None
 
     component = config["simulation"]["component"]
     component = np.atleast_1d(component).tolist()
@@ -411,7 +421,8 @@ def main(argv: list[str] | None = None) -> int:
         model.velocity[(xxnew < rincut * config["simulation"]["mask_inside"]), 2] = 0.0
 
     model.rhoGas[mask_inner_edge] = np.nan
-    model.tgas[mask_inner_edge] = np.nan
+    if config["simulation"]["tgas"]:
+        model.tgas[mask_inner_edge] = np.nan
     for i in range(3):
         model.velocity[mask_inner_edge, i] = np.nan
 

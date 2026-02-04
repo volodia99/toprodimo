@@ -1,7 +1,7 @@
 DEFAULT_LAYER = {
     "simulation": {
         "mask_inside": "unset",
-        "tgas": "unset",
+        "tgas": {},
     },
     "prodimo": {
         "plot": False,

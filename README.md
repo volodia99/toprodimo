@@ -48,6 +48,7 @@ You can find an example for the parameter file in `toprodimo/toprodimo.toml`.
 
 ***Optional parameters:***
 - `mask_inside` : removes the contribution of the radial and vertical velocities close to the grid's inner edge `r_inner`, at `mask_inside*r_inner`, to avoid some spurious effects in ProDiMo (`float`). By default we do not cancel these velocity components (`mask_inside=0.0`).
+- `tgas` : compute the gas temperature from the simulations. Implemented: `tgas = {eos="ideal", mu_star=1.37}`, using an ideal equation of state (tgas = pressure/density) and a user-defined mean molecular weight. For the moment, we recommand to let ProDiMo handle the gas temperature, by not providing any tgas.
 
 ### 2. Section `[prodimo]`
 
