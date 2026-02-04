@@ -6,6 +6,7 @@ unit_mass_msun  = 1.2                                                           
 component       = ["dust", "gas"]                                                       #necessary
 internal_rho    = 2.0                                                                   #necessary if dust
 mask_inside     = 1.2                                                                   #optional
+tgas            = {eos = "ideal", mu_star = 1.37}
 
 [prodimo]
 from            = "tests/data/idefix_1_dust_fluid/prodimo_from_ref"                     #necessary
