@@ -411,19 +411,18 @@ def main(argv: list[str] | None = None) -> int:
     rrnew = np.sqrt(xxnew**2 + zznew**2)
     rincut = rrnew.min()*0.95  # use this as the cut ...
 
-    mask_inner_edge = np.zeros_like(xxnew, dtype=bool)
-    mask_inner_edge = (xxnew < rincut)
+    mask_inner_edge = np.zeros_like(rrnew, dtype=bool)
+    mask_inner_edge = (rrnew < rincut * config["simulation"]["mask_inside"])
 
-    if config["simulation"]["mask_inside"]:
-        print(f"INFO: canceling (vx, vz) inside {config["simulation"]["mask_inside"]:.2f} r_inner...\n")
-        model.velocity[(xxnew < rincut * config["simulation"]["mask_inside"]), 0] = 0.0
-        model.velocity[(xxnew < rincut * config["simulation"]["mask_inside"]), 2] = 0.0
-
-    model.rhoGas[mask_inner_edge] = np.nan
-    if config["simulation"]["tgas"]:
-        model.tgas[mask_inner_edge] = np.nan
-    for i in range(3):
-        model.velocity[mask_inner_edge, i] = np.nan
+    if "gas" in component:
+        model.rhoGas[mask_inner_edge] = np.nan
+        if config["simulation"]["tgas"]:
+            model.tgas[mask_inner_edge] = np.nan
+        for i in range(3):
+            model.velocity[mask_inner_edge, i] = np.nan
+    if "dust" in component:
+        for i in range(len(model.dustSDF.asize)):
+            model.dustSDF.fsize_rho[i, mask_inner_edge] = np.nan
 
     if not(os.path.isdir(config["prodimo"]["to"])):
         print(f"WARN: '{config["prodimo"]["to"]}' must exist. Creating it...\n")
