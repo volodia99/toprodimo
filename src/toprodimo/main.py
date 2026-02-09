@@ -234,7 +234,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     return parser
 
-def plot_model(model, pdf_name:str=""):
+def plot_model(model, *, pdf_name:str="", config:dict):
     """
     Plot various quantities of the model using prodimopy plotting tools.
     """
@@ -272,8 +272,9 @@ def plot_model(model, pdf_name:str=""):
             ylim=[0, 3*xmin],
         )
 
-        pp.plot_cont(model, "tg", **constyle, xlim=xlim, ylim=ylim)
-        pp.plot_cont(model, "tg", **constyle, xlim=[0.75*xmin, 3*xmin], ylim=[0, 3*xmin])
+        if config["simulation"]["tgas"]:
+            pp.plot_cont(model, "tg", **constyle, xlim=xlim, ylim=ylim)
+            pp.plot_cont(model, "tg", **constyle, xlim=[0.75*xmin, 3*xmin], ylim=[0, 3*xmin])
 
         for i, label in enumerate(["vx", "vy", "vz"]):
             if label=="vy":
@@ -367,8 +368,6 @@ def main(argv: list[str] | None = None) -> int:
     config = DeepChainMap(config_file_layer, DEFAULT_LAYER)
     if not is_set(config["simulation"]["mask_inside"]):
         config["simulation"]["mask_inside"] = 0.0
-    # if not (config["simulation"]["tgas"]):
-    #     config["simulation"]["tgas"] = None
 
     component = config["simulation"]["component"]
     component = np.atleast_1d(component).tolist()
@@ -447,10 +446,10 @@ def main(argv: list[str] | None = None) -> int:
     if config["prodimo"]["plot"]:
         pmodel = model.get_pmodel()
         # Plot directly the data from the simulation
-        plot_model(pmodel, pdf_name=os.path.join(config["prodimo"]["to"], "simulation"))
+        plot_model(pmodel, pdf_name=os.path.join(config["prodimo"]["to"], "simulation"), config=config)
 
         # Plot the new ProDiMo model
-        plot_model(interpolated_prodimo_model, pdf_name=os.path.join(config["prodimo"]["to"], "prodimo"))
+        plot_model(interpolated_prodimo_model, pdf_name=os.path.join(config["prodimo"]["to"], "prodimo"), config=config)
 
         models = [pmodel, interpolated_prodimo_model]
 
