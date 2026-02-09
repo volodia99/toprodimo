@@ -411,8 +411,8 @@ def main(argv: list[str] | None = None) -> int:
     rrnew = np.sqrt(xxnew**2 + zznew**2)
     rincut = rrnew.min()*0.95  # use this as the cut ...
 
-    mask_inner_edge = np.zeros_like(rrnew, dtype=bool)
-    mask_inner_edge = (rrnew < rincut * config["simulation"]["mask_inside"])
+    mask_inner_edge = np.zeros_like(xxnew, dtype=bool)
+    mask_inner_edge = (xxnew < rincut * config["simulation"]["mask_inside"])
 
     if "gas" in component:
         model.rhoGas[mask_inner_edge] = np.nan
