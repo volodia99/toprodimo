@@ -30,6 +30,11 @@ class TestFileWrite:
             target_subdirectory="idefix_1_dust_fluid/prodimo_to_ref/",
             path=test_data_dir,
         )
+        partial_extraction(
+            target_tarfile=data_dir / "idefix_1_dust_fluid.tar.gz", 
+            target_subdirectory="idefix_1_dust_fluid/idefix_ref/",
+            path=test_data_dir,
+        )
         data_dir_from_ref = test_data_dir / "idefix_1_dust_fluid" / "prodimo_from_ref"
         data_dir_to_ref = test_data_dir / "idefix_1_dust_fluid" / "prodimo_to_ref"
         data_dir_to = test_data_dir / "idefix_1_dust_fluid" / "prodimo_to"
