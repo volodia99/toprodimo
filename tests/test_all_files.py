@@ -39,9 +39,6 @@ class TestFileWrite:
         data_dir_to_ref = test_data_dir / "idefix_1_dust_fluid" / "prodimo_to_ref"
         data_dir_to = test_data_dir / "idefix_1_dust_fluid" / "prodimo_to"
 
-        if os.path.isdir(data_dir_to):
-            shutil.rmtree(data_dir_to)
-
         main([str(test_data_dir / "toprodimo.toml")])
 
         pluto_rho_ref = np.loadtxt(os.path.join(data_dir_to_ref, "pluto_rho.dat"))
@@ -68,5 +65,4 @@ class TestFileWrite:
         pluto_dustsizedist = np.loadtxt(os.path.join(data_dir_to, "pluto_dustsizedist.dat"), skiprows=2)
         np.testing.assert_array_equal(pluto_dustsizedist_ref, pluto_dustsizedist)
 
-        shutil.rmtree(data_dir_to)
         shutil.rmtree(test_data_dir / "idefix_1_dust_fluid")
