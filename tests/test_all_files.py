@@ -7,8 +7,6 @@ import pytest
 
 from toprodimo.main import main
 
-# "idefix_1_dust_fluid.tar.gz"
-# "idefix_1_dust_fluid/prodimo_from_ref/"
 def partial_extraction(*, target_tarfile:str, target_subdirectory:str, path:str):
     with tarfile.open(target_tarfile) as tar:
         subdir_and_files = [
