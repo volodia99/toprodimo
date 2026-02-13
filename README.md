@@ -13,7 +13,7 @@ To be implemented :
 
 ## Installation
 
-We recommend to install `toprodimo` using the package and project manager `uv`. See the [documentation](https://docs.astral.sh/uv/getting-started/installation/#standalone-installer) to install `uv` on your system. After creating an environment (`uv venv`), run the following:
+We recommend to install `toprodimo` using the package and project manager `uv`. See the [documentation](https://docs.astral.sh/uv/getting-started/installation/#standalone-installer) to install `uv` on your system. Run the following:
 
 ```shell
 uv tool install toprodimo
@@ -68,6 +68,7 @@ In order for the procedure to work, you need to keep in mind that:
 - `toprodimo` works on top of an initialized ProDiMo model that has to be run beforehand with the typical parameters of the simulated model (disk, star, ...). The corresponding (ProDiMo.out, *.in) files are then copied to a new prodimo directory to perform the interpolation of the simulated data to this new ProDiMo model.
 
 See also the [ProDiMo documentation](https://prodimowiki.readthedocs.io/en/latest/userguide/interface2D.html).
+
 
 
 
