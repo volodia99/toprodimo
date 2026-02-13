@@ -1,0 +1,13 @@
+[simulation]
+on              = 1                                                                     #necessary
+input_dir       = "tests/idefix_1_dust_fluid/idefix_ref"                                      #necessary
+unit_length_au  = 93.0                                                                  #necessary
+unit_mass_msun  = 1.2                                                                   #necessary
+component       = ["dust", "gas"]                                                       #necessary
+tgas            = {eos = "ideal", mu_star = 1.37}
+internal_rho    = 2.0                                                                   #necessary if dust
+mask_inside     = 1.2                                                                   #optional
+
+[prodimo]
+from            = "tests/idefix_1_dust_fluid/prodimo_from_ref"                     #necessary
+to              = "tests/idefix_1_dust_fluid/prodimo_to"                           #necessary
