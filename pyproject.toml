@@ -1,7 +1,7 @@
 [project]
 name = "toprodimo"
 version = "0.1.0"
-description = "Add your description here"
+description = "Interface to interpolate and convert 2D (r, theta) datasets from simulation outputs to ProDiMo"
 readme = "README.md"
 authors = [
     { name = "gwf" }
