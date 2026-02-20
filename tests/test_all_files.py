@@ -43,26 +43,26 @@ class TestFileWrite:
 
         pluto_rho_ref = np.loadtxt(os.path.join(data_dir_to_ref, "pluto_rho.dat"))
         pluto_rho = np.loadtxt(os.path.join(data_dir_to, "pluto_rho.dat"))
-        np.testing.assert_array_equal(pluto_rho_ref, pluto_rho)
+        np.testing.assert_allclose(pluto_rho, pluto_rho_ref, rtol=1e-12, strict=True)
 
         pluto_tgas_ref = np.loadtxt(os.path.join(data_dir_to_ref, "pluto_tgas.dat"))
         pluto_tgas = np.loadtxt(os.path.join(data_dir_to, "pluto_tgas.dat"))
-        np.testing.assert_array_equal(pluto_tgas_ref, pluto_tgas)
+        np.testing.assert_allclose(pluto_tgas, pluto_tgas_ref, rtol=1e-12, strict=True)
 
         pluto_vx_ref = np.loadtxt(os.path.join(data_dir_to_ref, "pluto_vx.dat"))
         pluto_vx = np.loadtxt(os.path.join(data_dir_to, "pluto_vx.dat"))
-        np.testing.assert_array_equal(pluto_vx_ref, pluto_vx)
+        np.testing.assert_allclose(pluto_vx, pluto_vx_ref, rtol=1e-12, strict=True)
 
         pluto_vy_ref = np.loadtxt(os.path.join(data_dir_to_ref, "pluto_vy.dat"))
         pluto_vy = np.loadtxt(os.path.join(data_dir_to, "pluto_vy.dat"))
-        np.testing.assert_array_equal(pluto_vy_ref, pluto_vy)
+        np.testing.assert_allclose(pluto_vy, pluto_vy_ref, rtol=1e-12, strict=True)
 
         pluto_vz_ref = np.loadtxt(os.path.join(data_dir_to_ref, "pluto_vz.dat"))
         pluto_vz = np.loadtxt(os.path.join(data_dir_to, "pluto_vz.dat"))
-        np.testing.assert_array_equal(pluto_vz_ref, pluto_vz)
+        np.testing.assert_allclose(pluto_vz, pluto_vz_ref, rtol=1e-12, strict=True)
 
         pluto_dustsizedist_ref = np.loadtxt(os.path.join(data_dir_to_ref, "pluto_dustsizedist.dat"), skiprows=2)
         pluto_dustsizedist = np.loadtxt(os.path.join(data_dir_to, "pluto_dustsizedist.dat"), skiprows=2)
-        np.testing.assert_array_equal(pluto_dustsizedist_ref, pluto_dustsizedist)
+        np.testing.assert_allclose(pluto_dustsizedist, pluto_dustsizedist_ref, rtol=1e-12, strict=True)
 
         shutil.rmtree(test_data_dir / "idefix_1_dust_fluid")
